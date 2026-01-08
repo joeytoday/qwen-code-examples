@@ -16,6 +16,8 @@ The project includes examples for:
 ├── skills/             # Custom skills for various tasks
 │   ├── image-generate/ # AI image generation using DashScope
 │   └── youtube-transcript-extractor/ # Extracting transcripts from YouTube
+├── vibe/               # Marketing materials and brochures for Qwen Code
+│   └── brochure/       # Introduction brochures in multiple languages
 └── README.md
 ```
 
@@ -34,6 +36,17 @@ Generates high-quality images from text descriptions using Alibaba Cloud's DashS
 
 - **Location**: `skills/image-generate/`
 - **Key Features**: Smart prompt optimization for hand-drawn styles and automated asset management.
+
+## Marketing Materials
+
+### Qwen Code Brochures
+
+Professional brochures introducing Qwen Code features and capabilities in multiple languages.
+
+- **Location**: `vibe/brochure/`
+- **Contents**:
+  - `qwen-code.html` - Chinese version of the introduction brochure
+  - `qwen-code.en.html` - English version of the introduction brochure
 
 ## Getting Started
 
