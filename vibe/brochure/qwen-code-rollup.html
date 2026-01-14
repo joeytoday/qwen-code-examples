@@ -105,7 +105,7 @@
         padding: 0 60px 40px;
       }
       .feature-card {
-        background: rgba(255, 255, 255, 0.7);
+        background: var(--secondary);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         padding: 20px;
@@ -114,7 +114,6 @@
         justify-content: center;
         align-items: center;
         text-align: center;
-        backdrop-filter: blur(5px);
       }
       .feature-icon {
         width: 50px;
@@ -171,11 +170,24 @@
       .code-block {
         background: #1e1e1e;
         color: #d4d4d4;
-        padding: 20px;
+        padding: 45px 25px 25px;
         border-radius: 12px;
         font-family: "Menlo", monospace;
         font-size: 20px;
         border: 1px solid #333;
+        position: relative;
+        overflow: hidden;
+      }
+      .code-block::before {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ff5f56;
+        box-shadow: 22px 0 0 #ffbd2e, 44px 0 0 #27c93f;
       }
 
       .scenarios-section {
@@ -360,6 +372,25 @@
         border: 1px solid var(--border);
         cursor: pointer;
       }
+      .color-option.active {
+        border: 2px solid var(--primary);
+        position: relative;
+      }
+      .color-option.active::after {
+        content: "✓";
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: var(--primary);
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+      }
       .btn-shot {
         background: var(--primary);
         color: white;
@@ -373,7 +404,7 @@
     </style>
   </head>
   <body>
-    <div class="rollup-canvas bg-mesh" id="rollup">
+    <div class="rollup-canvas bg-grid" id="rollup">
       <!-- 0. 品牌头部 -->
       <section class="header-section">
         <h1>Qwen Code</h1>
@@ -475,10 +506,10 @@
       <footer class="footer-section">
         <div>
           <div style="font-size: 32px; font-weight: 800; margin-bottom: 5px">
-            立即开启智能编码
+            开源地址
           </div>
           <div style="font-size: 20px; color: var(--muted-foreground)">
-            github.com/QwenLM/qwen-code
+            https://github.com/QwenLM/qwen-code
           </div>
         </div>
         <div class="qr-area">
@@ -514,11 +545,17 @@
         <div
           class="color-option"
           style="background: white"
-          onclick="setBg('bg-white')"
+          onclick="setBg('bg-white', this)"
         ></div>
-        <div class="color-option bg-dot" onclick="setBg('bg-dot')"></div>
-        <div class="color-option bg-grid" onclick="setBg('bg-grid')"></div>
-        <div class="color-option bg-mesh" onclick="setBg('bg-mesh')"></div>
+        <div class="color-option bg-dot" onclick="setBg('bg-dot', this)"></div>
+        <div
+          class="color-option bg-grid active"
+          onclick="setBg('bg-grid', this)"
+        ></div>
+        <div
+          class="color-option bg-mesh"
+          onclick="setBg('bg-mesh', this)"
+        ></div>
       </div>
       <button class="btn-shot" onclick="exportImg()">
         生成高清图 (4x Scale)
@@ -527,22 +564,71 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
-      function setBg(cls) {
+      function setBg(cls, el) {
         document.getElementById("rollup").className = "rollup-canvas " + cls;
+        if (el) {
+          document
+            .querySelectorAll(".color-option")
+            .forEach((opt) => opt.classList.remove("active"));
+          el.classList.add("active");
+        }
       }
       async function exportImg() {
         const btn = event.target;
+        const originalText = btn.innerText;
         btn.innerText = "正在生成...";
-        const canvas = await html2canvas(document.getElementById("rollup"), {
-          scale: 4,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-        });
-        const link = document.createElement("a");
-        link.download = `qwen-code-rollup-final.png`;
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-        btn.innerText = "生成高清图 (4x Scale)";
+        btn.disabled = true;
+
+        try {
+          const canvas = await html2canvas(document.getElementById("rollup"), {
+            scale: 4,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            onclone: (clonedDoc) => {
+              // 1. 获取原文档的所有 computed 样式中的 CSS 变量
+              const computedStyle = getComputedStyle(document.documentElement);
+              const cssVars = {};
+              for (const sheet of document.styleSheets) {
+                try {
+                  for (const rule of sheet.cssRules) {
+                    if (rule.selectorText === ":root") {
+                      for (const prop of rule.style) {
+                        if (prop.startsWith("--")) {
+                          cssVars[prop] = computedStyle
+                            .getPropertyValue(prop)
+                            .trim();
+                        }
+                      }
+                    }
+                  }
+                } catch (e) {}
+              }
+
+              // 2. 将变量显式设置到克隆文档的 root 上
+              const clonedRoot = clonedDoc.documentElement;
+              Object.entries(cssVars).forEach(([key, value]) => {
+                clonedRoot.style.setProperty(key, value);
+              });
+
+              // 3. 移除阴影
+              const clonedRollup = clonedDoc.getElementById("rollup");
+              if (clonedRollup) {
+                clonedRollup.style.boxShadow = "none";
+              }
+            },
+          });
+
+          const link = document.createElement("a");
+          link.download = `qwen-code-rollup-final.png`;
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        } catch (err) {
+          console.error("Export failed:", err);
+          alert("图片生成失败，请检查控制台。");
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
     </script>
   </body>
