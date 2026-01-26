@@ -7,7 +7,7 @@ import { CodeEditorPanel } from './CodeEditorPanel';
 import { PanelLeft } from 'lucide-react';
 
 export const MultiFileCodeRenderer: React.FC<
-  MultiFileCodeRendererProps & { tabBarExtraContent?: React.ReactNode }
+  MultiFileCodeRendererProps & { tabBarExtraContent?: React.ReactNode; sessionId?: string }
 > = ({
   files,
   readOnly = true,
@@ -16,6 +16,7 @@ export const MultiFileCodeRenderer: React.FC<
   activeFile: propActiveFile,
   onSelectFile,
   tabBarExtraContent,
+  sessionId,
 }) => {
   const [activeFile, setActiveFile] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -50,7 +51,7 @@ export const MultiFileCodeRenderer: React.FC<
     <div className="relative flex h-full min-h-0 w-full bg-gray-900">
       {/* Sidebar */}
       {sidebarOpen && (
-        <FileTree files={files} activeFile={activeFile} onSelectFile={handleSelectFile} />
+        <FileTree files={files} activeFile={activeFile} onSelectFile={handleSelectFile} sessionId={sessionId} />
       )}
 
       {/* Editor Area */}

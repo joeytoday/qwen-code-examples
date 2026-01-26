@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "http-proxy": "^1.18.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",
     "next": "15.1.4",
     "node-pty": "^1.1.0",

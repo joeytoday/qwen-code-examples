@@ -11,6 +11,7 @@ interface CodeRendererProps {
   tabBarExtraContent?: React.ReactNode;
   activeFile?: string;
   onSelectFile?: (path: string) => void;
+  sessionId?: string;
 }
 
 const CodeRenderer: React.FC<CodeRendererProps> = ({
@@ -21,6 +22,7 @@ const CodeRenderer: React.FC<CodeRendererProps> = ({
   tabBarExtraContent,
   activeFile,
   onSelectFile,
+  sessionId,
 }) => {
   // Handle multi-file content change
   const handleMultiFileContentChange = (code: string, filename: string) => {
@@ -39,6 +41,7 @@ const CodeRenderer: React.FC<CodeRendererProps> = ({
         tabBarExtraContent={tabBarExtraContent}
         activeFile={activeFile}
         onSelectFile={onSelectFile}
+        sessionId={sessionId}
       />
     </div>
   );

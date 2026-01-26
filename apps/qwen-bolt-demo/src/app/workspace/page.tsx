@@ -420,6 +420,7 @@ function WorkspaceContent() {
             onCodeChange={handleCodeChange}
             activeFile={activeFile}
             onSelectFile={handleSelectFile}
+            sessionId={sessionId}
           />
         ) : (
           <div className="h-full flex items-center justify-center bg-gray-900 text-gray-500">
