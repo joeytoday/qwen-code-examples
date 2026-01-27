@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import CodeRenderer from '@/components/CodeRenderer';
+import { PlanMessage, containsPlan } from '@/components/PlanMessage';
 
 interface Message {
   id: string;
@@ -356,34 +357,52 @@ function WorkspaceContent() {
 
         {/* Message list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {messages.map((msg) => {
+            const isPlan = msg.role === 'assistant' && containsPlan(msg.content);
+            
+            return (
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-100'
-                }`}
+                key={msg.id}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
+                {msg.role === 'user' ? (
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-blue-600 text-white">
+                    <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
+                  </div>
+                ) : isPlan ? (
+                  <div className="max-w-[85%]">
+                    <PlanMessage content={msg.content} />
+                  </div>
+                ) : (
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-gray-800 text-gray-100">
+                    <div className="text-sm whitespace-pre-wrap break-words">{msg.content}</div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {currentResponse && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-gray-800">
-                <div className="text-sm whitespace-pre-wrap break-words text-gray-100">
-                  {currentResponse}
+              {containsPlan(currentResponse) ? (
+                <div className="max-w-[85%]">
+                  <PlanMessage content={currentResponse} />
+                  <div className="flex items-center mt-2 text-blue-400">
+                    <div className="animate-pulse">●</div>
+                    <span className="ml-2 text-xs">Typing...</span>
+                  </div>
                 </div>
-                <div className="flex items-center mt-2 text-blue-400">
-                  <div className="animate-pulse">●</div>
-                  <span className="ml-2 text-xs">Typing...</span>
+              ) : (
+                <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-gray-800">
+                  <div className="text-sm whitespace-pre-wrap break-words text-gray-100">
+                    {currentResponse}
+                  </div>
+                  <div className="flex items-center mt-2 text-blue-400">
+                    <div className="animate-pulse">●</div>
+                    <span className="ml-2 text-xs">Typing...</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
