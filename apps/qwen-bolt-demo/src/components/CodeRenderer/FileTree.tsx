@@ -174,7 +174,7 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
   };
 
   return (
-    <div className="w-64 border-r border-gray-700 bg-gray-900 flex flex-col">
+    <div className="h-full border-r border-gray-700 bg-gray-900 flex flex-col">
       {/* Header */}
       <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
         <h3 className="text-sm font-semibold text-gray-400">FILES</h3>

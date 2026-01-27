@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MultiFileCodeRendererProps } from './types';
 import { FileTree } from './FileTree';
 import { CodeEditorPanel } from './CodeEditorPanel';
-import { PanelLeft } from 'lucide-react';
+import { PanelLeft, GripVertical } from 'lucide-react';
 
 export const MultiFileCodeRenderer: React.FC<
   MultiFileCodeRendererProps & { tabBarExtraContent?: React.ReactNode; sessionId?: string }
@@ -20,6 +20,8 @@ export const MultiFileCodeRenderer: React.FC<
 }) => {
   const [activeFile, setActiveFile] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [fileTreeWidth, setFileTreeWidth] = useState(256);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Initialize active file
   useEffect(() => {
@@ -47,11 +49,61 @@ export const MultiFileCodeRenderer: React.FC<
     }
   };
 
+  // Handle resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = e.clientX - 384; // 384 is chat panel width
+        if (newWidth >= 200 && newWidth <= 600) {
+          setFileTreeWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
+
   return (
     <div className="relative flex h-full min-h-0 w-full bg-gray-900">
       {/* Sidebar */}
       {sidebarOpen && (
-        <FileTree files={files} activeFile={activeFile} onSelectFile={handleSelectFile} sessionId={sessionId} />
+        <>
+          <div style={{ width: `${fileTreeWidth}px` }} className="flex-shrink-0">
+            <FileTree files={files} activeFile={activeFile} onSelectFile={handleSelectFile} sessionId={sessionId} />
+          </div>
+          
+          {/* Resize handle */}
+          <div
+            className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize flex-shrink-0 group relative"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <GripVertical className="w-4 h-4 text-gray-400" />
+            </div>
+          </div>
+        </>
       )}
 
       {/* Editor Area */}

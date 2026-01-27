@@ -52,7 +52,7 @@ function WorkspaceContent() {
   const [serverError, setServerError] = useState<string>('');
   const [devServerLogs, setDevServerLogs] = useState<string[]>([]);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'code' | 'preview' | 'split'>('split');
+  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasInitializedRef = useRef(false);
@@ -468,22 +468,10 @@ function WorkspaceContent() {
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
-              title="Code Only"
+              title="Code View"
             >
               <FileCode className="w-4 h-4" />
               <span>Code</span>
-            </button>
-            <button
-              onClick={() => setViewMode('split')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs transition-colors ${
-                viewMode === 'split'
-                  ? 'bg-gray-700 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-              }`}
-              title="Split View"
-            >
-              <Columns className="w-4 h-4" />
-              <span>Split</span>
             </button>
             <button
               onClick={() => setViewMode('preview')}
@@ -492,7 +480,7 @@ function WorkspaceContent() {
                   ? 'bg-gray-700 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
-              title="Preview Only"
+              title="Preview View"
             >
               <Eye className="w-4 h-4" />
               <span>Preview</span>
@@ -503,8 +491,8 @@ function WorkspaceContent() {
         {/* Content area */}
         <div className="flex-1 flex overflow-hidden">
           {/* Code editor */}
-          {(viewMode === 'code' || viewMode === 'split') && (
-            <div className={`${viewMode === 'split' ? 'flex-1' : 'w-full'} flex flex-col overflow-hidden`}>
+          {viewMode === 'code' && (
+            <div className="w-full flex overflow-hidden">
               {Object.keys(files).length > 0 ? (
                 <CodeRenderer
                   files={files}
@@ -516,7 +504,7 @@ function WorkspaceContent() {
                   sessionId={sessionId}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-900 text-gray-500">
+                <div className="h-full w-full flex items-center justify-center bg-gray-900 text-gray-500">
                   <div className="text-center">
                     <Code2 className="w-16 h-16 mx-auto mb-4 opacity-30" />
                     <p className="text-lg font-medium">No files yet</p>
@@ -528,8 +516,8 @@ function WorkspaceContent() {
           )}
 
           {/* Preview */}
-          {(viewMode === 'preview' || viewMode === 'split') && (
-            <div className={`${viewMode === 'split' ? 'w-1/3' : 'w-full'} flex flex-col bg-gray-900 ${viewMode === 'split' ? 'border-l border-gray-700' : ''}`}>
+          {viewMode === 'preview' && (
+            <div className="w-full flex flex-col bg-gray-900">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-gray-800">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-white">Preview</h2>
