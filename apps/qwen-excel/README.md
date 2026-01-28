@@ -23,73 +23,42 @@ The `agent/` folder contains Python examples including:
 ## Prerequisites
 
 - [Node.js 20+](https://nodejs.org) or [Bun](https://bun.sh)
-- [Qwen Code CLI](https://github.com/QwenLM/qwen-code) (installed locally)
 - Local LLM service (such as [Ollama](https://ollama.ai) with a Qwen model)
-- Python 3.9+ (for the Python agent examples)
 - LibreOffice (optional, for formula recalculation)
 
-## Installation
+## Getting Started
 
-1. Clone the repository:
-```bash
-git clone https://github.com/anthropics/sdk-demos.git
-cd sdk-demos/excel-demo
-```
+### 1. Preparation
 
-2. Install dependencies:
+#### 1.1 Set up Python Environment
+
+- Python 3.9+ is required
+- Create a virtual environment:
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+  ```
+
+#### 1.2 Install Qwen Code CLI
+
+Follow the official documentation to install Qwen Code CLI:
+[Qwen Code Documentation](https://qwenlm.github.io/qwen-code-docs/zh/users/overview/)
+
+
+### 2. Installation
+
+1. Install project dependencies:
 ```bash
 npm install
 # or bun install
 ```
 
-3. Install Qwen Code CLI:
-   ```bash
-   npm install -g qwen-code
-   ```
+2. Install project dependencies:
 
-4. Set up a local LLM (recommended: Ollama):
-   - Install [Ollama](https://ollama.ai)
-   - Pull a Qwen model:
-   ```bash
-   ollama pull qwen2.5:7b
-   ```
-
-5. Optionally, configure your local model:
-   - Set the `QWEN_CODE_MODEL` environment variable:
-   ```bash
-   export QWEN_CODE_MODEL="ollama/qwen2.5:7b"
-   ```
-
-6. Run the Electron application:
 ```bash
 npm start
 # or bun start
 ```
-
-## Working with Python Examples
-
-The `agent/` directory contains Python scripts demonstrating spreadsheet generation:
-
-### Setup Python Environment
-
-```bash
-cd agent
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Run Example Scripts
-
-```bash
-# Create a workout tracker
-python create_workout_tracker.py
-
-# Create a budget tracker
-python create_budget_tracker.py
-```
-
-See the [agent/README.md](./agent/README.md) for more details on the Excel agent setup and capabilities.
 
 ## Features
 
@@ -99,20 +68,6 @@ See the [agent/README.md](./agent/README.md) for more details on the Excel agent
 - **Multi-Sheet Workbooks**: Create workbooks with multiple related sheets
 - **Data Analysis**: Analyze existing spreadsheets and extract insights
 - **Desktop Integration**: Native desktop application built with Electron
-
-## Project Structure
-
-```
-excel-demo/
-├── agent/              # Python examples and Excel agent setup
-│   ├── create_workout_tracker.py
-│   ├── create_budget_tracker.py
-│   └── README.md       # Excel agent documentation
-├── src/
-│   ├── main/          # Electron main process
-│   └── renderer/      # React UI components
-└── package.json
-```
 
 ## Resources
 
