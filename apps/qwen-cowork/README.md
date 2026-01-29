@@ -11,116 +11,154 @@
 </div>
 
 
-## Agent Cowork
+Qwen Code Cowork is an open-source work assistant built using the Qwen Code SDK service, capable of implementing all the features that Claude Cowork can achieve.
 
-Agent Cowork is an open-source alternative to Claude Cowork — a desktop AI assistant that helps with programming, file management, and any task you can describe.
+It's not just a GUI, but a genuine AI assistant that can help you handle many tedious tasks without requiring any coding foundation. Simply install and start using it.
 
-> Not just a GUI.  
-> A real AI collaboration partner.  
-> No need to learn the Claude Agent SDK — just create tasks and choose execution paths.
+👇 Practical scenario: Demonstrating organizing messy files in a local folder
 
+<video src="https://cloud.video.taobao.com/vod/W4hoEc3Bd4C2I2XGh58u9udG_2SWtvvVuf9SQ-gHc_Q.mp4" controls></video>
 
+## Join Community
 
-## ✨ Why Agent Cowork?
+| WeChat Group                                                                                          | DingTalk Group                                                                                      |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| ![](https://gw.alicdn.com/imgextra/i1/O1CN01LF3SYz1Vv42Yrh1zs_!!6000000002714-2-tps-396-396.png) | ![](https://gw.alicdn.com/imgextra/i4/O1CN01oRKsAo1fMqbmM6FW3_!!6000000003993-2-tps-380-380.png) |
 
-Qwen Code is powerful — but it **only runs in the terminal**.
+## Core Capabilities
 
-That means:
-- ❌ No visual feedback for complex tasks
-- ❌ Hard to track multiple sessions
-- ❌ Tool outputs are inconvenient to inspect
+### AI Collaboration Partner — More Than Just a GUI
 
-**Agent Cowork solves these problems:**
+Qwen Code Cowork is your AI collaboration partner that can:
 
-- 🖥️ Runs as a **native desktop application**
-- 🤖 Acts as your **AI collaboration partner** for any task
-- 🔁 Reuses your **existing `~/.qwen/settings.json`**
-- No development environment or Qwen Code installation required.
+- **Write and edit code** — Supporting any programming language
+- **Manage files** — Create, move, organize
+- **Run commands** — Build, test, deploy
+- **Answer questions** — About your codebase
+- **Do anything** — As long as you can describe it in natural language
 
+### Session Management
 
+- Create sessions with **custom working directories**
+- Restore any previous conversations
+- Complete local session history (stored in SQLite)
+- Secure deletion and automatic persistence
+
+### Real-time Streaming Output
+
+- **Character-by-character streaming output**
+- View Qwen Code's thought process
+- Markdown + syntax-highlighted code rendering
+- Tool call visualization and status indicators
+
+### Tool Permission Control
+
+- Sensitive operations require explicit approval
+- Allow/Deny by tool
+- Interactive decision panel
+- Complete control over what Qwen Code can do
+
+## Fully Compatible with Qwen Code
+
+Agent Cowork **shares configuration with Qwen Code**.
+
+Direct reuse:
+
+```
+~/.qwen/settings.json
+```
+
+This means:
+
+- Same API keys
+- Same Base URL
+- Same models
+- Same behavior
+
+> Configure Qwen Code once — use everywhere.
 
 ## 🚀 Quick Start
 
-#### Prerequisites
+### Prerequisites
 
 - [Bun](https://bun.sh/) or Node.js 22+
 - [Qwen Code](https://qwenlm.github.io/qwen-code-docs/en/users/overview/) installed and authenticated
 
-bash
-#### Clone the repository
-git clone https://github.com/QwenLM/qwen-code-examples
-cd qwen-code-examples/apps/qwen-cowork
-
-#### Install dependencies
-bun install
-
-#### Run in development mode
-bun run dev
-
-#### Or build production binaries
+If you don't have Bun, you can install it in the terminal using the following command:
 
 ```bash
+# Install bun
+curl -fsSL https://bun.sh/install | bash
+
+# Configure directory
+exec /bin/zsh
+```
+
+### Download and Install
+
+```bash
+# Clone repository
+git clone https://github.com/QwenLM/qwen-code-examples
+
+# Enter qwen-cowork directory
+cd qwen-code-examples/apps/qwen-cowork
+
+# Install dependencies
+bun install
+
+# Start in development mode
+bun run dev
+
+# Or build production version
 bun run dist:mac-arm64    # macOS Apple Silicon (M1/M2/M3)
 bun run dist:mac-x64      # macOS Intel
 bun run dist:win          # Windows
 bun run dist:linux        # Linux
 ```
 
-## Example
-An example of organizing a local folder:
+**Installation Guide Video** 👇
 
-https://github.com/user-attachments/assets/8ce58c8b-4024-4c01-82ee-f8d8ed6d4bba
+<video src="https://cloud.video.taobao.com/vod/5MBr-hphyK0gxNnV-UaHsN_fMwlbzfvLe1oQXV40_10.mp4" controls></video>
 
+## Architecture Overview
 
-## 🛠 Development
+| Layer | Technology |
+|-------|------------|
+| Framework | Electron 39 |
+| Frontend | React 19, Tailwind CSS 4 |
+| State Management | Zustand |
+| Database | better-sqlite3 (WAL mode) |
+| AI | @qwen-code/sdk |
+| Build | Vite, electron-builder |
 
-bash
-#### Start development server (hot reload)
+## Development
+
+```shell
+# Start development server (hot reload)
 bun run dev
 
-#### Type checking / build
+# Type checking
 bun run build
 
+# Code checking
+bun run lint
+```
 
-
-## 🗺 Roadmap
+## Roadmap
 
 Planned features:
 
-todo
+- GUI configuration interface and KEY
+- 🚧 More features coming soon
 
+## Finally
 
+If you've ever wanted:
 
-## 🤝 Contributing
+- A desktop resident AI collaboration partner
+- Visual feedback for Qwen Code workflow
+- Convenient cross-project session management
 
-Pull requests are welcome.
+This project is made for you.
 
-1. Fork this repository
-2. Create your feature branch
-3. Commit your changes
-4. Open a Pull Request
-
-Please make only minimal changes.
-
-
-
-## ⭐ Final Words
-
-If you’ve ever wanted:
-
-* A persistent desktop AI collaboration partner
-* Visual insight into how Claude works
-* Convenient session management across projects
-
-This project is built for you.
-
-👉 **If it helps you, please give it a Star.**
-
-
-
-## License
-
-MIT
-
-
-
+> Reference open-source project: [https://github.com/DevAgentForge/Claude-Cowork](https://github.com/DevAgentForge/Claude-Cowork/tree/main)
