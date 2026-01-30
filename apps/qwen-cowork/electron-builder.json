@@ -9,7 +9,8 @@
         "dist-electron/preload.cjs"
     ],
     "asarUnpack": [
-        "node_modules/@qwen-code/sdk/**/*"
+        "node_modules/@qwen-code/sdk/**/*",
+        "node_modules/better-sqlite3/**/*"
     ],
     "icon": "./qwen-color.png",
     "mac": {
