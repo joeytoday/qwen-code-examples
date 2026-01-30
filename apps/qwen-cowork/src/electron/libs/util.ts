@@ -9,7 +9,7 @@ export function getQwenCodePath(): string | undefined {
   if (app.isPackaged) {
     return join(
       process.resourcesPath,
-      'app.asar.unpacked/node_modules/@qwen-code/sdk/cli.mjs'
+      'app.asar.unpacked/node_modules/@qwen-code/sdk/dist/cli/cli.js'
     );
   }
   return undefined;

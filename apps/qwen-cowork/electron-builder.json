@@ -11,9 +11,10 @@
     "asarUnpack": [
         "node_modules/@qwen-code/sdk/**/*"
     ],
-    "icon": "./claude-color.png",
+    "icon": "./qwen-color.png",
     "mac": {
-        "target": "dmg"
+        "target": "dmg",
+        "executableName": "QwenCowork"
     },
     "linux": {
         "target": "AppImage",
