@@ -57,8 +57,17 @@ export function getEnhancedEnv(): Record<string, string> {
     console.warn('[getEnhancedEnv] No API config found, Qwen SDK may fail');
   }
 
+  // In packaged Electron app, process.execPath points to Electron executable.
+  // ELECTRON_RUN_AS_NODE=1 makes Electron run as a Node.js runtime,
+  // allowing it to execute JavaScript files like cli.js
+  const electronEnv: Record<string, string> = {};
+  if (app.isPackaged) {
+    electronEnv.ELECTRON_RUN_AS_NODE = '1';
+  }
+
   return {
     ...filteredEnv,
+    ...electronEnv,
     PATH: newPath,
   };
 }
@@ -70,7 +79,17 @@ export const enhancedEnv = getEnhancedEnv();
 export const generateSessionTitle = async (userIntent: string | null): Promise<string> => {
   if (!userIntent) return "New Session";
 
+  // In packaged app, skip title generation to avoid blocking - use simple fallback
+  if (app.isPackaged) {
+    const words = userIntent.trim().split(/\s+/).slice(0, 5).join(' ');
+    return words.length > 30 ? words.substring(0, 30) + '...' : words || "New Session";
+  }
+
   try {
+    const timeoutMs = 10000;
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+    
     const q = query({
       prompt: `Please analyze the following user input and generate a short, clear title to identify this conversation theme:
 ${userIntent}
@@ -78,19 +97,22 @@ ${userIntent}
 Directly output the title only, do not include any other content.`,
       options: {
         pathToQwenExecutable: qwenCodePath,
-        env: getEnhancedEnv(), // Get latest env with API config
-        authType: 'openai',  // Use OpenAI-compatible API authentication
+        env: getEnhancedEnv(),
+        authType: 'openai',
         permissionMode: "yolo",
         maxSessionTurns: 1,
+        abortController,
       }
     });
 
     for await (const message of q) {
       if (message.type === "result" && message.subtype === "success") {
+        clearTimeout(timeoutId);
         const successMsg = message as SDKResultMessageSuccess;
         return successMsg.result || "New Session";
       }
     }
+    clearTimeout(timeoutId);
   } catch {
     // Ignore errors and return default title
   }
