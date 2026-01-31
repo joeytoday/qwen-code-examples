@@ -3,7 +3,10 @@
     "productName": "Agent Cowork",
     "files": [
         "dist-electron",
-        "dist-react"
+        "dist-react",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
     ],
     "extraResources": [
         "dist-electron/preload.cjs"
@@ -15,15 +18,31 @@
     "icon": "./qwen-color.png",
     "mac": {
         "target": "dmg",
-        "executableName": "QwenCowork"
+        "executableName": "QwenCowork",
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
+        ]
     },
     "linux": {
         "target": "AppImage",
-        "category": "Utility"
+        "category": "Utility",
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
+        ]
     },
     "win": {
         "target": [
             "portable"
+        ],
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux"
         ]
     }
 }
