@@ -1,15 +1,16 @@
 
+
 <div align="center">
 
-# Open Claude Cowork
+# Qwen Code Cowork
 
 [![Version](https://img.shields.io/badge/version-0.0.2-blue.svg)](https://github.com/DevAgentForge/Claude-Cowork/releases)
+
 [![Platform](https://img.shields.io/badge/platform-%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/DevAgentForge/Claude-Cowork/releases)
 
-[简体中文](README_ZH.md)
+[中文](README.md)
 
 </div>
-
 
 Qwen Code Cowork is an open-source work assistant built using the Qwen Code SDK service, capable of implementing all the features that Claude Cowork can achieve.
 
@@ -17,7 +18,7 @@ It's not just a GUI, but a genuine AI assistant that can help you handle many te
 
 👇 Practical scenario: Demonstrating organizing messy files in a local folder
 
-[watch video](https://cloud.video.taobao.com/vod/W4hoEc3Bd4C2I2XGh58u9udG_2SWtvvVuf9SQ-gHc_Q.mp4)
+[![](https://img.alicdn.com/imgextra/i3/6000000008043/O1CN011UkmDj29Hkg2krP5j_!!6000000008043-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/W4hoEc3Bd4C2I2XGh58u9udG_2SWtvvVuf9SQ-gHc_Q.mp4)
 
 ## Join Community
 
@@ -60,7 +61,7 @@ Qwen Code Cowork is your AI collaboration partner that can:
 
 ## Fully Compatible with Qwen Code
 
-Agent Cowork **shares configuration with Qwen Code**.
+Qwen Cowork **shares configuration with Qwen Code**.
 
 Direct reuse:
 
@@ -83,11 +84,11 @@ This means:
 
 Download the installation package for your computer from the project: https://github.com/QwenLM/qwen-code-examples/releases
 
-![[20260130.png]]
+![](https://gw.alicdn.com/imgextra/i4/O1CN01ngzzeT1hwgq5ZmEQi_!!6000000004342-2-tps-1113-420.png)
 
 **Installation Guide Video** 👇
 
-[Installation Guide Video](https://cloud.video.taobao.com/vod/tsbnZm8AFpwd2h9U8oBJ3_A2gBdA63flXhYrTqKnX7w.mp4)
+[![](https://img.alicdn.com/imgextra/i3/6000000002789/O1CN01rAwmsd1WTPkPPHWDE_!!6000000002789-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/NWWgmfBghXgqCyow2ithG0ByhDsBLDwrOUXLle1Qyq4.mp4)
 
 If you encounter issues opening the app, go to **System Settings** → **Privacy & Security** → scroll down to **Security** → select **Open Anyway**
 
@@ -134,7 +135,7 @@ bun run dist:linux        # Linux
 
 **Installation Guide Video** 👇
 
-[Installation Guide Video](https://cloud.video.taobao.com/vod/5MBr-hphyK0gxNnV-UaHsN_fMwlbzfvLe1oQXV40_10.mp4)
+[![](https://img.alicdn.com/imgextra/i3/6000000006120/O1CN01keYBUk1v512mbcjQe_!!6000000006120-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/_gqXY7rjt4OT-snShhh0yyaiEjRUJoFGQ2RYFyPhOTY.mp4)
 
 ## Architecture Overview
 

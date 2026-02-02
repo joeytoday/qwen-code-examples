@@ -1,23 +1,22 @@
-
 <div align="center">
 
 # Qwen Code Cowork
 
 [![Version](https://img.shields.io/badge/version-0.0.2-blue.svg)](https://github.com/DevAgentForge/Claude-Cowork/releases)
+
 [![Platform](https://img.shields.io/badge/platform-%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/DevAgentForge/Claude-Cowork/releases)
 
 [英文](README.md)
 
 </div>
 
-
- Qwen Code Cowork 是使用 Qwen Code SDK 服务构建开源工作助手，可以实现所有 Claude Cowork 能够实现的功能。
+Qwen Code Cowork 是使用 Qwen Code SDK 服务构建开源工作助手，可以实现所有 Claude Cowork 能够实现的功能。
 
 不仅仅是一个 GUI，而是真正能够帮你处理很多繁琐工作的 AI 助理，不需要任何代码基础，直接安装就可以开始使用。
 
 👇 实战场景：整理本地文件夹中乱七八糟的文件演示
 
-[整理桌面文件](https://cloud.video.taobao.com/vod/W4hoEc3Bd4C2I2XGh58u9udG_2SWtvvVuf9SQ-gHc_Q.mp4)
+[![](https://img.alicdn.com/imgextra/i3/6000000008043/O1CN011UkmDj29Hkg2krP5j_!!6000000008043-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/W4hoEc3Bd4C2I2XGh58u9udG_2SWtvvVuf9SQ-gHc_Q.mp4)
 
 ## 加入交流
 
@@ -60,7 +59,7 @@ Qwen Code Cowork 是你的 AI 协作伙伴，可以：
 
 ## 与 Qwen Code 完全兼容
 
-Agent Cowork **与 Qwen Code 共享配置**。
+Qwen Cowork **与 Qwen Code 共享配置**。
 
 直接复用：
 
@@ -83,11 +82,11 @@ Agent Cowork **与 Qwen Code 共享配置**。
 
 从项目中选择下载对应电脑安装包： https://github.com/QwenLM/qwen-code-examples/releases
 
-![[20260130.png]]
+![](https://gw.alicdn.com/imgextra/i4/O1CN01ngzzeT1hwgq5ZmEQi_!!6000000004342-2-tps-1113-420.png)
 
 **安装指导视频**👇
 
-[点击查看演示视频](https://cloud.video.taobao.com/vod/tsbnZm8AFpwd2h9U8oBJ3_A2gBdA63flXhYrTqKnX7w.mp4)
+[![](https://img.alicdn.com/imgextra/i3/6000000002789/O1CN01rAwmsd1WTPkPPHWDE_!!6000000002789-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/NWWgmfBghXgqCyow2ithG0ByhDsBLDwrOUXLle1Qyq4.mp4)
 
 如果遇到无法打开的情况，可以打开【系统设置】-【隐私与安全性】- 拖动到下方【安全性】- 选择【仍要打开】
 
@@ -134,8 +133,7 @@ bun run dist:linux        # Linux
 
 **安装指导视频**👇
 
-[源码安装演示](https://cloud.video.taobao.com/vod/5MBr-hphyK0gxNnV-UaHsN_fMwlbzfvLe1oQXV40_10.mp4)
-
+[![](https://img.alicdn.com/imgextra/i3/6000000006120/O1CN01keYBUk1v512mbcjQe_!!6000000006120-0-tbvideo.jpg)](https://cloud.video.taobao.com/vod/_gqXY7rjt4OT-snShhh0yyaiEjRUJoFGQ2RYFyPhOTY.mp4)
 
 ## 架构概览
 
