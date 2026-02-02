@@ -8,7 +8,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/DevAgentForge/Claude-Cowork/releases)
 
-[中文](README.md)
+[中文](README_ZH.md)
 
 </div>
 
