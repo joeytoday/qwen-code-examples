@@ -15,8 +15,29 @@ type HistoryMessage = {
 // 存储会话的工作目录
 const sessionWorkspaces = new Map<string, string>();
 
-function buildPrompt(history: HistoryMessage[], message: string): string {
+function buildPrompt(history: HistoryMessage[], message: string, knowledge?: string, filesContext?: string): string {
   const parts: string[] = [];
+
+  // 系统级约束：knowledge 和 uploadedFiles 作为全局上下文，始终在最前面
+  const systemInstructions: string[] = [];
+  
+  if (knowledge && knowledge.trim()) {
+    systemInstructions.push(`<GLOBAL_INSTRUCTIONS>
+${knowledge.trim()}
+</GLOBAL_INSTRUCTIONS>`);
+  }
+  
+  if (filesContext && filesContext.trim()) {
+    systemInstructions.push(filesContext.trim());
+  }
+  
+  if (systemInstructions.length > 0) {
+    parts.push(`SYSTEM: You must follow these global instructions and use the provided context files in all your responses:
+
+${systemInstructions.join('\n\n')}
+
+These instructions and files apply to the entire conversation. Always consider them when responding to user requests.`);
+  }
   
   if (Array.isArray(history)) {
     for (const item of history) {
@@ -65,10 +86,16 @@ function getSessionWorkspace(sessionId: string): string | undefined {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history, sessionId: clientSessionId } = await request.json();
+    const { message, history, sessionId: clientSessionId, uploadedFiles, knowledge, modelConfig } = await request.json();
     const sessionId = clientSessionId || randomUUID();
 
-    console.log('[API /api/chat] Received request:', { sessionId, message });
+    console.log('[API /api/chat] Received request:', { 
+      sessionId, 
+      message: message.substring(0, 100) + '...',
+      uploadedFilesCount: uploadedFiles?.length || 0,
+      hasKnowledge: !!knowledge,
+      modelConfig: modelConfig || 'default',
+    });
 
     if (!message) {
       return new Response(
@@ -81,32 +108,93 @@ export async function POST(request: NextRequest) {
     const workspaceDir = await createSessionWorkspace(sessionId);
     console.log('[API /api/chat] Workspace directory:', workspaceDir);
 
-    const encoder = new TextEncoder();
-    const fullPrompt = buildPrompt(history || [], message);
+    // 🔥 关键：将上传的文件写入工作目录
+    if (uploadedFiles && Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+      console.log('[API /api/chat] Writing uploaded files to workspace...');
+      for (const file of uploadedFiles) {
+        try {
+          const filePath = join(workspaceDir, file.path);
+          const fileDir = join(filePath, '..');
+          await mkdir(fileDir, { recursive: true });
+          await writeFile(filePath, file.content, 'utf-8');
+          console.log('[API /api/chat] Wrote file:', file.path);
+        } catch (error) {
+          console.error('[API /api/chat] Error writing file:', file.path, error);
+        }
+      }
+    }
 
-    console.log('[API /api/chat] Full prompt:', fullPrompt.substring(0, 200) + '...');
-    console.log('[API /api/chat] Creating query with options:', {
+    const encoder = new TextEncoder();
+
+    // 准备上传文件的上下文
+    let filesContext = "";
+    if (uploadedFiles && Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
+      const fileList = uploadedFiles.map(file => `- ${file.path}`).join('\n');
+      const fileContents = uploadedFiles.map(file => 
+        `\`\`\`${file.path}\n${file.content}\n\`\`\``
+      ).join("\n\n");
+      filesContext = `<CONTEXT_FILES>
+The following files are available in the workspace and should be used as context:
+${fileList}
+
+File contents:
+${fileContents}
+
+You can reference, read, or modify these files as needed.
+</CONTEXT_FILES>`;
+    }
+    
+    // 构建完整的 prompt，knowledge 和 filesContext 作为系统级约束
+    const fullPrompt = buildPrompt(history || [], message, knowledge, filesContext);
+
+    // 构建查询选项
+    // 🔥 修复：将前端的 'openai-api-key' 映射为 SDK 需要的 'openai'
+    const frontendAuthType = modelConfig?.authType || 'qwen-oauth';
+    const sdkAuthType = frontendAuthType === 'openai-api-key' ? 'openai' : 'qwen-oauth';
+    
+    const queryOptions: any = {
       pathToQwenExecutable: 'qwen',
       includePartialMessages: true,
       debug: true,
       logLevel: 'debug',
-      authType: 'qwen-oauth',
+      authType: sdkAuthType,
       cwd: workspaceDir,
+    };
+
+    // 🔥 修复：正确传递 model 参数给 SDK
+    if (modelConfig?.model) {
+      queryOptions.model = modelConfig.model;
+      console.log('[API /api/chat] Setting model:', modelConfig.model);
+    }
+
+    // 🔥 修复：如果使用 OpenAI 认证，通过 env 参数传递环境变量
+    if (frontendAuthType === 'openai-api-key' && modelConfig) {
+      const envVars: Record<string, string> = {};
+      
+      if (modelConfig.apiKey) {
+        envVars.OPENAI_API_KEY = modelConfig.apiKey;
+      }
+      if (modelConfig.baseUrl) {
+        envVars.OPENAI_BASE_URL = modelConfig.baseUrl;
+      }
+      
+      // 将环境变量传递给 SDK
+      queryOptions.env = envVars;
+      console.log('[API /api/chat] OpenAI mode - env vars set (apiKey:', !!modelConfig.apiKey, ', baseUrl:', modelConfig.baseUrl, ')');
+    }
+
+    console.log('[API /api/chat] Full prompt:', fullPrompt.substring(0, 200) + '...');
+    console.log('[API /api/chat] Creating query with options:', {
+      authType: queryOptions.authType,
+      model: queryOptions.model,
+      cwd: queryOptions.cwd,
+      includePartialMessages: queryOptions.includePartialMessages,
+      hasEnv: !!queryOptions.env,
+      envKeys: queryOptions.env ? Object.keys(queryOptions.env) : [],
     });
 
-    const q = query({
-      prompt: createPromptStream(sessionId, fullPrompt),
-      options: {
-        pathToQwenExecutable: 'qwen',
-        includePartialMessages: true,
-        debug: true,  // 🔥 开启 debug 模式
-        logLevel: 'debug',  // 🔥 设置日志级别为 debug
-        // 🔥 关键修复：使用 qwen-oauth 认证（免费且推荐）
-        authType: 'qwen-oauth',
-        // 🔥 关键：设置工作目录
-        cwd: workspaceDir,
-        // 🔥 关键：配置工具权限回调
-        canUseTool: async (toolName, input) => {
+    // 添加工具权限回调到 options
+    queryOptions.canUseTool = async (toolName: string, input: any) => {
           console.log('[API /api/chat] Tool request:', toolName, JSON.stringify(input).substring(0, 200));
           
           // 允许所有文件操作工具（包括各种可能的命名方式）
@@ -169,13 +257,16 @@ export async function POST(request: NextRequest) {
             };
           }
           
-          console.log('[API /api/chat] Tool denied:', toolName);
-          return {
-            behavior: 'deny',
-            message: `Tool ${toolName} is not allowed in this context`,
-          };
-        },
-      },
+      console.log('[API /api/chat] Tool denied:', toolName);
+      return {
+        behavior: 'deny',
+        message: `Tool ${toolName} is not allowed in this context`,
+      };
+    };
+
+    const q = query({
+      prompt: createPromptStream(sessionId, fullPrompt),
+      options: queryOptions,
     });
 
     console.log('[API /api/chat] Query object created, waiting for initialization...');

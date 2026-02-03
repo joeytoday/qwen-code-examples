@@ -108,8 +108,8 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
     return (
       <div key={node.path}>
         <div
-          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-800/50 transition-colors ${
-            isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-300'
+          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800/50 transition-colors ${
+            isActive ? 'bg-blue-600/20 text-blue-400' : 'text-gray-700 dark:text-gray-300'
           }`}
           style={{ paddingLeft: `${level * 12 + 12}px` }}
           onClick={() => {
@@ -174,10 +174,10 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
   };
 
   return (
-    <div className="h-full border-r border-gray-700 bg-gray-900 flex flex-col">
+    <div className="h-full border-r border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
-        <h3 className="text-sm font-semibold text-gray-400">FILES</h3>
+      <div className="px-3 py-2 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">FILES</h3>
         <div className="flex items-center gap-1">
           <button
             onClick={() => {
@@ -186,7 +186,7 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
                 setSearchQuery('');
               }
             }}
-            className="p-1.5 hover:bg-gray-700 rounded transition-colors group"
+            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors group"
             title="Search Files"
           >
             <Search className="w-4 h-4 text-gray-400 group-hover:text-blue-400" />
@@ -194,7 +194,7 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
           {sessionId && Object.keys(files).length > 0 && (
             <button
               onClick={handleDownload}
-              className="p-1.5 hover:bg-gray-700 rounded transition-colors group"
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors group"
               title="Download Project"
             >
               <Download className="w-4 h-4 text-gray-400 group-hover:text-blue-400" />
@@ -205,14 +205,14 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({ fil
 
       {/* Search input */}
       {isSearchOpen && (
-        <div className="px-3 py-2 border-b border-gray-700 flex-shrink-0">
+        <div className="px-3 py-2 border-b border-gray-300 dark:border-gray-700 flex-shrink-0">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search files..."
-              className="w-full px-3 py-1.5 pr-8 bg-gray-800 border border-gray-600 rounded text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-1.5 pr-8 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-900 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               autoFocus
             />
             {searchQuery && (

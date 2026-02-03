@@ -9,6 +9,8 @@ import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { CodeEditorPanelProps } from './types';
 import { getLanguageFromFilename } from './utils';
+import { useEditor } from '@/contexts/EditorContext';
+import { useTheme } from 'next-themes';
 
 export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
   file,
@@ -19,6 +21,8 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const { settings } = useEditor();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -39,13 +43,22 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
       }
     };
 
+    // 保存当前代码内容（如果编辑器已存在）
+    const currentCode = viewRef.current ? viewRef.current.state.doc.toString() : code;
+
+    // 销毁旧的编辑器实例
+    if (viewRef.current) {
+      viewRef.current.destroy();
+      viewRef.current = null;
+    }
+
     // 创建编辑器状态
     const state = EditorState.create({
-      doc: code,
+      doc: currentCode,
       extensions: [
         basicSetup,
         getLanguageExtension(),
-        oneDark,
+        ...(resolvedTheme === 'dark' ? [oneDark] : []),
         EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && onChange && !readOnly) {
@@ -56,11 +69,14 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
         EditorView.theme({
           '&': {
             height: '100%',
-            fontSize: '14px',
+            fontSize: `${settings.fontSize}px`,
           },
           '.cm-scroller': {
             overflow: 'auto',
             fontFamily: "'Fira Code', 'Consolas', monospace",
+          },
+          '.cm-content': {
+            lineHeight: settings.lineHeight.toString(),
           },
         }),
       ],
@@ -75,10 +91,12 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
     viewRef.current = view;
 
     return () => {
-      view.destroy();
-      viewRef.current = null;
+      if (viewRef.current) {
+        viewRef.current.destroy();
+        viewRef.current = null;
+      }
     };
-  }, [file, readOnly]);
+  }, [file, readOnly, settings.fontSize, settings.lineHeight, resolvedTheme]);
 
   // 更新代码内容
   useEffect(() => {
@@ -95,7 +113,7 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
   }, [code]);
 
   return (
-    <div className="h-full w-full bg-[#282c34] overflow-hidden">
+    <div className="h-full w-full bg-white dark:bg-[#282c34] overflow-hidden">
       <div ref={editorRef} className="h-full w-full" />
     </div>
   );

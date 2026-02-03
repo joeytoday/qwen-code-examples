@@ -497,15 +497,25 @@ function WorkspaceContent() {
             style={{ height: isTerminalOpen ? terminalHeight : 'auto' }}
           >
             {/* Drag Handle - serves as both border and resize handle */}
-            <div
-              onMouseDown={isTerminalOpen ? handleDragStart : undefined}
-              className={`h-px flex-shrink-0 transition-colors ${
-                isTerminalOpen 
-                  ? `cursor-ns-resize ${isDragging ? 'bg-blue-500 h-0.5' : 'bg-gray-200/60 dark:bg-gray-800/60 hover:bg-blue-500/50'}`
-                  : 'bg-gray-200/60 dark:bg-gray-800/60'
-              }`}
-              title={isTerminalOpen ? "Drag to resize" : undefined}
-            />
+            {isTerminalOpen && (
+              <>
+                <div
+                  onMouseDown={handleDragStart}
+                  className={`h-2 flex-shrink-0 cursor-ns-resize transition-colors flex items-center justify-center group ${
+                    isDragging ? 'bg-blue-500/20' : 'hover:bg-blue-500/10'
+                  }`}
+                  title="Drag to resize"
+                >
+                  <div className={`w-12 h-1 rounded-full transition-colors ${
+                    isDragging ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-500 group-hover:bg-blue-400'
+                  }`} />
+                </div>
+                <div className="h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+              </>
+            )}
+            {!isTerminalOpen && (
+              <div className="h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+            )}
             <TerminalPanel 
               devServerLogs={devServerLogs} 
               sessionId={sessionId}
