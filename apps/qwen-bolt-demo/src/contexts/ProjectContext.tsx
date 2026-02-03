@@ -18,7 +18,7 @@ export interface ModelConfig {
   model: string;
 }
 
-interface ProjectSettings {
+export interface ProjectSettings {
   knowledge: string;
   uploadedFiles: UploadedFile[];
   modelConfig: ModelConfig;
