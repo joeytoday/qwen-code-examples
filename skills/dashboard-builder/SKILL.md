@@ -311,6 +311,51 @@ export function LiveIndicator() {
 }
 ```
 
+## Automation Scripts
+
+### Automatic Setup and Run
+
+To simplify the development setup process, we provide an automated script that will:
+
+1. Create a new Next.js project with all required dependencies
+2. Install shadcn/ui components
+3. Set up sample dashboard components
+4. Start the development server
+
+Run the setup script with:
+
+```bash
+./setup-and-run.sh
+```
+
+The script will prompt you for a project name and automatically handle all setup steps, then start the development server at `http://localhost:3000`.
+
+### Manual Setup
+
+If you prefer manual setup, follow these steps:
+
+1. Create a new Next.js app:
+   ```bash
+   npx create-next-app@latest my-dashboard --typescript --tailwind --eslint
+   ```
+
+2. Install required dependencies:
+   ```bash
+   cd my-dashboard
+   npm install shadcn-ui recharts framer-motion lucide-react
+   ```
+
+3. Initialize and add shadcn/ui components:
+   ```bash
+   npx shadcn-ui@latest init
+   npx shadcn-ui@latest add card button badge table scroll-area alert
+   ```
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
 ## CSS Styles
 
 ```css
