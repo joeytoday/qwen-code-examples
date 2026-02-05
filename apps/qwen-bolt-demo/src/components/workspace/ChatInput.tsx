@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyboardEvent } from 'react';
+import { KeyboardEvent, useEffect, useRef } from 'react';
 import { Send, X, File, Folder } from 'lucide-react';
 import { FileAttachment } from '@/components/FileAttachment';
 import { TokenDisplay } from '@/components/TokenDisplay';
@@ -114,12 +114,22 @@ export function ChatInput({
   onFileRemoved,
   onFolderRemoved,
 }: ChatInputProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
     }
   };
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(Math.max(textareaRef.current.scrollHeight, 110), 300); // Min 110px (approx 4 rows), Max 300px
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
 
   return (
     <div className="p-4 border-t border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-black">
@@ -140,6 +150,7 @@ export function ChatInput({
       
       <div className="relative">
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyPress={handleKeyPress}
@@ -147,6 +158,7 @@ export function ChatInput({
           disabled={isLoading}
           className="w-full px-6 py-5 pr-14 bg-white dark:bg-gray-900 border border-gray-300/60 dark:border-gray-700/60 rounded-2xl resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"
           rows={4}
+          style={{ minHeight: '110px' }}
         />
         <button
           onClick={onSend}

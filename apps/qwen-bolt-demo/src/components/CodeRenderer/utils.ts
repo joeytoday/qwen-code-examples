@@ -53,12 +53,12 @@ export interface FileNode {
   children?: FileNode[];
 }
 
-export function buildFileTree(files: Record<string, string>): FileNode[] {
+export function buildFileTree(paths: string[]): FileNode[] {
   const root: FileNode[] = [];
   const pathMap = new Map<string, FileNode>();
 
   // 排序文件路径
-  const sortedPaths = Object.keys(files).sort();
+  const sortedPaths = [...paths].sort();
 
   for (const path of sortedPaths) {
     const parts = path.split('/');

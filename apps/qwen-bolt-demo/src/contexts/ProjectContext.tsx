@@ -111,18 +111,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setSettings(DEFAULT_SETTINGS);
   }, []);
 
+  const value = React.useMemo(() => ({
+    settings,
+    updateKnowledge,
+    addFiles,
+    removeFile,
+    clearAllFiles,
+    updateModelConfig,
+    resetSettings,
+  }), [settings, updateKnowledge, addFiles, removeFile, clearAllFiles, updateModelConfig, resetSettings]);
+
   return (
-    <ProjectContext.Provider
-      value={{
-        settings,
-        updateKnowledge,
-        addFiles,
-        removeFile,
-        clearAllFiles,
-        updateModelConfig,
-        resetSettings,
-      }}
-    >
+    <ProjectContext.Provider value={value}>
       {children}
     </ProjectContext.Provider>
   );

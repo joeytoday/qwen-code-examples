@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MultiFileCodeRendererProps } from './types';
 import { FileTree } from './FileTree';
 import { CodeEditorPanel } from './CodeEditorPanel';
-import { PanelLeft, GripVertical } from 'lucide-react';
+import { PanelLeft, GripVertical, Copy, Check } from 'lucide-react';
 
 export const MultiFileCodeRenderer: React.FC<
   MultiFileCodeRendererProps & { tabBarExtraContent?: React.ReactNode; sessionId?: string }
@@ -18,12 +18,28 @@ export const MultiFileCodeRenderer: React.FC<
   tabBarExtraContent,
   sessionId,
 }) => {
-  const [activeFile, setActiveFile] = useState<string>('');
+  // Derive effective active file from props
+  // We sort keys to ensure deterministic behavior
+  const filePaths = React.useMemo(() => Object.keys(files).sort(), [files]);
+  const activeFile = propActiveFile || filePaths[0] || '';
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fileTreeWidth, setFileTreeWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!activeFile || !files[activeFile]) return;
+    try {
+      await navigator.clipboard.writeText(files[activeFile]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
 
   // Auto-switch to file if search query matches content and current file does not
   useEffect(() => {
@@ -38,10 +54,6 @@ export const MultiFileCodeRenderer: React.FC<
     }
 
     // Otherwise, find the first file that matches
-    // We sort keys to ensure deterministic behavior (e.g. alphabetical or typically utils.ts vs types.ts)
-    // Actually, 'files' keys might be unsorted. 
-    const filePaths = Object.keys(files).sort();
-    
     for (const path of filePaths) {
       if (path === activeFile) continue;
       
@@ -50,33 +62,18 @@ export const MultiFileCodeRenderer: React.FC<
         path.toLowerCase().includes(lowerQuery) || 
         content.toLowerCase().includes(lowerQuery)
       ) {
-        setActiveFile(path);
         onSelectFile?.(path);
         break;
       }
     }
-  }, [searchQuery, files, activeFile, onSelectFile]);
+  }, [searchQuery, files, activeFile, onSelectFile, filePaths]);
   
   // Refs for drag tracking
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
-  // Initialize active file
-  useEffect(() => {
-    if (propActiveFile) {
-      setActiveFile(propActiveFile);
-    } else {
-      // Set first file as active if none specified
-      const firstFile = Object.keys(files)[0];
-      if (firstFile) {
-        setActiveFile(firstFile);
-      }
-    }
-  }, [propActiveFile, files]);
-
   // Handle file selection
   const handleSelectFile = (path: string) => {
-    setActiveFile(path);
     onSelectFile?.(path);
   };
 
@@ -178,7 +175,16 @@ export const MultiFileCodeRenderer: React.FC<
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{activeFile}</span>
           </div>
 
-          {tabBarExtraContent}
+          <div className="flex items-center gap-2">
+             <button
+              onClick={handleCopy}
+              className="p-1 hover:bg-gray-300 dark:hover:bg-gray-700 rounded transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              title="Copy code"
+            >
+              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+            </button>
+            {tabBarExtraContent}
+          </div>
         </div>
 
         {/* Editor */}

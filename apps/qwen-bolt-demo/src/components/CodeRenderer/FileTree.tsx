@@ -32,7 +32,9 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({
     else setLocalIsSearchOpen(val);
   };
 
-  const fileTree = buildFileTree(files);
+  // Optimize: Only rebuild tree when file list changes, not content
+  const filePaths = useMemo(() => Object.keys(files), [files]);
+  const fileTree = useMemo(() => buildFileTree(filePaths), [filePaths]);
 
   const toggleFolder = (path: string) => {
     setExpandedFolders((prev) => {
@@ -81,7 +83,8 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({
     };
     
     return filterNodes(fileTree, searchQuery);
-  }, [fileTree, searchQuery, files]);
+    // Explicitly depend on files ONLY IF searching to avoid re-calc when just typing without search
+  }, [fileTree, searchQuery, searchQuery ? files : undefined]);
 
   // Auto-expand folders when searching (use useEffect for side effects)
   React.useEffect(() => {
