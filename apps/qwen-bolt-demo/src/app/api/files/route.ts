@@ -75,17 +75,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
-    console.log('[API /api/files] Workspace directory:', workspaceDir);
+    let workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
 
-    // 检查工作目录是否存在
+    // Resolve realpath to match chat route logic
     try {
-      const dirStat = await stat(workspaceDir);
-      console.log('[API /api/files] Directory exists:', dirStat.isDirectory());
+      await stat(workspaceDir); // Ensure it exists first
+      workspaceDir = await realpath(workspaceDir);
+      console.log('[API /api/files] Workspace directory (resolved):', workspaceDir);
     } catch (error) {
-      console.error('[API /api/files] Directory not found:', error);
+      console.error('[API /api/files] Workspace not found:', error);
       return NextResponse.json(
-        { error: 'Session workspace not found', workspaceDir },
+        { error: 'Session workspace not found' },
         { status: 404 }
       );
     }
@@ -120,46 +120,8 @@ export async function GET(request: NextRequest) {
     // 我们总是从 workspaceDir 开始构建，relativePath 初始为空
     const tree = await buildFileTree(workspaceDir, '');
     
-    // 如果根目录包含一个意外的顶级目录（例如 private/var/... 泄露的情况），我们需要在这里进行额外清洗
-    // 但如果在 buildFileTree 时我们正确地使用了 relativePath，理论上返回的 tree 就已经是相对路径了。
-    // buildFileTree(workspaceDir, '') -> 
-    //   readdir(workspaceDir) -> entries: ['package.json', 'src']
-    //   entry: package.json -> path: 'package.json'
-    //   entry: src -> buildFileTree(workspaceDir/src, 'src') -> path: 'src/App.tsx'
-    // 所以这里的 tree 应该是干净的。
-    // 但是之前的截图中看到了 `private`，这说明可能之前 files 对象里的 key 本身就是脏的。
-    // 这里的 API 是用来全量加载文件状态的。如果之前的流式更新没有推送到 files 状态，
-    // 那么这里全量加载返回的树就至关重要。
-
     return NextResponse.json({ success: true, tree });
 
-      const fullPath = join(workspaceDir, filePath);
-      
-      try {
-        const content = await readFile(fullPath, 'utf-8');
-        return NextResponse.json({
-          success: true,
-          path: filePath,
-          content,
-        });
-      } catch (error) {
-        return NextResponse.json(
-          { error: 'File not found or cannot be read' },
-          { status: 404 }
-        );
-      }
-    }
-
-    // 否则返回文件树
-    const fileTree = await buildFileTree(workspaceDir);
-    console.log('[API /api/files] Built file tree:', JSON.stringify(fileTree, null, 2));
-    
-    return NextResponse.json({
-      success: true,
-      sessionId,
-      workspaceDir,
-      tree: fileTree,
-    });
   } catch (error) {
     console.error('Error in files endpoint:', error);
     return NextResponse.json(

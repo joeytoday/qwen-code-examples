@@ -133,12 +133,13 @@ export function useChat({ settings, sessionId, setSessionId, loadAllFiles, onFil
                       }
                     }
 
-                    // 优化：如果是流式更新模式 (onFileUpdate 存在)，则不需要最后全量拉取
-                    // 仅当没有流式回调时，作为兜底拉取一次
-                    if (currentSessionId && !onFileUpdate) {
+                    // 优化：虽然有流式更新 (onFileUpdate)，但在会话结束时全量拉取一次作为兜底
+                    // 确保任何丢失的文件监听事件（fs.watch 不稳定时）都能被修正，保证最终一致性
+                    if (currentSessionId) {
                       setTimeout(() => {
+                        console.log('[useChat] Turn complete, performing final consistency check (loadAllFiles)');
                         loadAllFiles(currentSessionId);
-                      }, 1000);
+                      }, 500); // 稍微延迟，确保文件系统 I/O 完成
                     }
                     break;
                   }

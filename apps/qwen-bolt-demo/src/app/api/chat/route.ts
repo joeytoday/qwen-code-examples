@@ -352,17 +352,81 @@ You can reference, read, or modify these files as needed.
           // 🔥 关键修复：不要在遇到 result 时 break，让 SDK 完整处理所有消息
           console.log('[API /api/chat] Starting to iterate over messages...');
           let messageCount = 0;
+          
+          // Track pending tool executions to proactively push file updates
+          const pendingToolFiles = new Map<string, string>(); // toolCallId -> filePath
+
           for await (const msg of q as AsyncIterable<SDKMessage>) {
             try {
               messageCount++;
-              console.log(`[API /api/chat] Received message #${messageCount}, type:`, (msg as any).type);
+              const msgType = (msg as any).type;
+              console.log(`[API /api/chat] Received message #${messageCount}, type:`, msgType);
+              
               const jsonLine = JSON.stringify(msg);
               controller.enqueue(encoder.encode(`data: ${jsonLine}\n\n`));
               
-              // We removed the duplicate parsing logic here.
-              // File updates are now pushed proactively via `canUseTool` hook using `streamController`.
-              
-              
+              // 1. Detect Intent: When Assistant *requests* an edit, store the file path
+              if (msgType === 'assistant' && (msg as any).message?.tool_calls) {
+                  const toolCalls = (msg as any).message.tool_calls;
+                  if (Array.isArray(toolCalls)) {
+                      for (const call of toolCalls) {
+                          if (call.function?.name) {
+                              const name = call.function.name.toLowerCase();
+                              if (name.includes('edit') || name.includes('replace') || name.includes('write') || name.includes('create')) {
+                                  try {
+                                      const args = JSON.parse(call.function.arguments || '{}');
+                                      // Handle various path parameter names
+                                      const path = args.file_path || args.path || args.filePath || args.relative_workspace_path;
+                                      if (path && call.id) {
+                                          pendingToolFiles.set(call.id, path);
+                                          console.log(`[API /api/chat] Tracking pending edit for tool ${call.id} on file ${path}`);
+                                      }
+                                  } catch (e) {
+                                      console.error('[API /api/chat] Failed to parse tool args for tracking:', e);
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+
+              // 2. Detect Completion: When Tool *updates* the system (msg.type might vary, but we look for 'tool' role messages or corresponding events)
+              // The SDK typically emits the tool execution result as a message with role='tool'
+              if (msgType === 'tool' || (msg as any).message?.role === 'tool') {
+                 const toolCallId = (msg as any).tool_call_id || (msg as any).message?.tool_call_id || (msg as any).parent_tool_use_id;
+                 
+                 if (toolCallId && pendingToolFiles.has(toolCallId)) {
+                     const filePath = pendingToolFiles.get(toolCallId);
+                     pendingToolFiles.delete(toolCallId);
+                     
+                     // Proactively read and push the update!
+                     if (filePath) {
+                         console.log(`[API /api/chat] Tool ${toolCallId} finished. Proactively pushing update for: ${filePath}`);
+                         setTimeout(async () => {
+                             try {
+                                 // Handle absolute/relative path logic similar to canUseTool
+                                 let targetPath = filePath;
+                                 if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+                                 
+                                 const fullPath = join(workspaceDir, targetPath);
+                                 const content = await readFile(fullPath, 'utf-8');
+                                 
+                                 const fileEvent = {
+                                    type: 'file_update',
+                                    path: targetPath,
+                                    content: content
+                                 };
+                                 const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
+                                 controller.enqueue(new TextEncoder().encode(payload));
+                                 console.log('[API /api/chat] Proactive push successful for:', targetPath);
+                             } catch (e) {
+                                 console.error('[API /api/chat] Proactive push failed for:', filePath, e);
+                             }
+                         }, 100); // Small delay to let OS flush writes
+                     }
+                 }
+              }
+
               // 记录 result 消息但不 break，让循环自然结束
               if ((msg as { type?: string }).type === 'result') {
                 console.log('[API /api/chat] Received result message, query will complete naturally');
