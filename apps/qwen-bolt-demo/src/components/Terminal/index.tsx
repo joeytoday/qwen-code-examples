@@ -149,6 +149,19 @@ const Terminal = React.forwardRef<any, TerminalProps>(({ containerId, socketUrl,
   }, [containerId, socketUrl, reconnectSignal, sendTerminalResize, handleConnected, handleDisconnected]);
 
   useEffect(() => {
+    if (!termRef.current) return;
+    termRef.current.options.theme = theme === 'light' ? {
+      background: '#ffffff',
+      foreground: '#333333',
+      cursor: '#333333',
+      selectionBackground: 'rgba(0, 0, 0, 0.1)',
+    } : { 
+      background: '#1e1e1e',
+      foreground: '#ffffff',
+    };
+  }, [theme]);
+
+  useEffect(() => {
     const handleWindowResize = () => {
       if (fitAddonRef.current && termRef.current && socketRef.current) {
         fitAddonRef.current.fit();

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Terminal as TerminalIcon, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import Terminal from './Terminal';
 
@@ -18,9 +19,15 @@ interface TerminalPanelProps {
 }
 
 export function TerminalPanel({ devServerLogs = [], sessionId, isOpen = true, onToggle, onServerDetected }: TerminalPanelProps) {
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('bolt');
   // 默认不创建 Terminal，用户需要时再添加，或者自动添加一个 Terminal-1 但要确保它拿到 sessionId
   const [terminals, setTerminals] = useState<TerminalTab[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 监听 sessionId 变化，一旦有了 sessionId，如果列表为空，自动创建一个连接到该 session 的终端
   useEffect(() => {
@@ -164,7 +171,7 @@ export function TerminalPanel({ devServerLogs = [], sessionId, isOpen = true, on
               <Terminal 
                 containerId={terminal.id} 
                 socketUrl="" 
-                theme={'dark'} // 暂时强制使用 dark 主题，避免 SSR 错误
+                theme={mounted ? (resolvedTheme === 'light' ? 'light' : 'dark') : 'dark'}
                 sessionId={sessionId}
               />
             </div>
