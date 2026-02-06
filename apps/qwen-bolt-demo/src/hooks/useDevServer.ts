@@ -41,11 +41,22 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
   const startDevServer = useCallback(async () => {
     console.log('[DevServer Debug] startDevServer called. WC ready:', !!webcontainer, 'isStarting:', isStartingServer);
     
-    // If webcontainer is not ready, we can't start. 
-    // BUT we should tell the user WHY instead of failing silently.
+    if (isWebContainerLoading) {
+        setDevServerLogs(prev => [...prev, '[Info] WebContainer is still initializing... please wait.']);
+        console.log('[DevServer Debug] Waiting for WebContainer to initialize...');
+        return;
+    }
+
+    if (webContainerError) {
+        setDevServerLogs(prev => [...prev, `[Error] WebContainer failed to start: ${webContainerError.message}`]);
+        console.error('[DevServer Debug] WebContainer boot error:', webContainerError);
+        return;
+    }
+    
+    // If we are not loading and have no error, but webcontainer is still null, it's a critical state.
     if (!webcontainer) {
-        setDevServerLogs(prev => [...prev, '[Error] WebContainer environment is not ready yet. Please wait a moment or refresh the page.']);
-        console.error('[DevServer Debug] Aborting start: WebContainer not initialized.');
+        setDevServerLogs(prev => [...prev, '[Error] WebContainer environment is not available. Check browser compatibility (Cross-Origin Isolation).']);
+        console.error('[DevServer Debug] Aborting start: WebContainer is null but not loading/erroring.');
         return;
     }
 
@@ -64,9 +75,14 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
       console.log(`[DevServer Debug] Project root detected: ${projectRoot}`);
       setDevServerLogs(prev => [...prev, `[WebContainer] Project root detected: ${projectRoot}`]);
       
+      // force jsh to avoid 'Cannot find module /bin/zsh' errors if npm tries to auto-detect shell from env
       const spawnOptions = { 
         cwd: projectRoot === '.' ? '/' : projectRoot,
-        env: { CI: 'true' } // Disable progress bars to avoid log spam
+        env: { 
+            CI: 'true',
+            npm_config_shell: 'jsh',
+            SHELL: '/bin/jsh' 
+        }
       };
 
       // 1. Install dependencies (Optimized)

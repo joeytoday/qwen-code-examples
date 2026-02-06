@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
-import { query, type SDKUserMessage, type SDKMessage } from '@qwen-code/sdk';
+import { query, type SDKUserMessage, type SDKMessage, type SDKSystemMessage, createSdkMcpServer, tool } from '@qwen-code/sdk';
+import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile, readFile, realpath } from 'fs/promises';
 import { watch, FSWatcher } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { buildPrompt, type HistoryMessage } from '@/lib/prompt-builder';
+import { getSystemInstructions, buildUserMessage } from '@/lib/prompt-builder';
 
 export const runtime = 'nodejs';
 
@@ -15,13 +16,22 @@ const sessionWorkspaces = new Map<string, string>();
 // 🔥 关键修复：创建一个持续的生成器，而不是单次的
 async function* createPromptStream(
   sessionId: string,
+  systemInstructions: string,
   content: string
-): AsyncIterable<SDKUserMessage> {
-  // 发送用户消息
+): AsyncIterable<SDKMessage> {
+  // 1. Combine system instructions into user prompt (Global Context Mechanism)
+  // Since SDK/Backend may not support 'system_prompt' subtype natively in the stream,
+  // we prepend it to the user message to ensure it is seen.
+  let finalContent = content;
+  if (systemInstructions) {
+    finalContent = `<system_instructions>\n${systemInstructions}\n</system_instructions>\n\n${content}`;
+  }
+
+  // 2. Send combined user message
   yield {
     type: 'user',
     session_id: sessionId,
-    message: { role: 'user', content },
+    message: { role: 'user', content: finalContent },
     parent_tool_use_id: null,
   } as SDKUserMessage;
   
@@ -54,18 +64,187 @@ function getSessionWorkspace(sessionId: string): string | undefined {
   return sessionWorkspaces.get(sessionId);
 }
 
+// 🔥 New Capability: SDK-native MCP Server for filesystem operations
+function createFileSystemServer(workspaceDir: string, streamController?: ReadableStreamDefaultController) {
+  return createSdkMcpServer({
+    name: 'local-fs',
+    version: '1.0.0',
+    tools: [
+      tool(
+        'write_file',
+        'Write a file to the workspace. If the file already exists, it will be overwritten.',
+        {
+          path: z.string().describe('The relative path of the file to write'),
+          content: z.string().describe('The content to write to the file'),
+        },
+        async ({ path, content }) => {
+          try {
+             // Validate and normalize path
+             let targetPath = path;
+             if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+             // Prevent exiting workspace
+             if (targetPath.includes('../')) throw new Error('Cannot write outside workspace');
+             
+             const absPath = join(workspaceDir, targetPath);
+             await mkdir(join(absPath, '..'), { recursive: true });
+             await writeFile(absPath, content, 'utf-8');
+             
+             console.log(`[local-fs] Wrote file: ${targetPath}`);
+
+             if (streamController) {
+                const fileEvent = {
+                   type: 'file_update',
+                   path: targetPath,
+                   content: content
+                };
+                const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
+                streamController.enqueue(new TextEncoder().encode(payload));
+             }
+
+             return {
+               content: [{ type: 'text', text: `Successfully wrote file: ${targetPath}` }]
+             };
+          } catch (e: any) {
+             console.error('[local-fs] Error writing file:', e);
+             return {
+                isError: true,
+                content: [{ type: 'text', text: `Error writing file: ${e.message}` }]
+             };
+          }
+        }
+      ),
+      tool(
+        'replace_string_in_file',
+        'Replace a specific string in a file with a new string. Ensure the oldString is unique.',
+        {
+           path: z.string().describe('The relative path of the file'),
+           oldString: z.string().describe('The exact string to replace'),
+           newString: z.string().describe('The new string to replace with'),
+        },
+        async ({ path, oldString, newString }) => {
+          try {
+             let targetPath = path;
+             if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+             const absPath = join(workspaceDir, targetPath);
+             
+             const currentContent = await readFile(absPath, 'utf-8');
+             if (!currentContent.includes(oldString)) {
+                return {
+                   isError: true,
+                   content: [{ type: 'text', text: `Error: oldString not found in ${path}` }]
+                };
+             }
+             
+             const newContent = currentContent.replace(oldString, newString);
+             await writeFile(absPath, newContent, 'utf-8');
+             
+             if (streamController) {
+                const fileEvent = {
+                   type: 'file_update',
+                   path: targetPath,
+                   content: newContent
+                };
+                const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
+                streamController.enqueue(new TextEncoder().encode(payload));
+             }
+             
+             return {
+               content: [{ type: 'text', text: `Successfully replaced string in ${path}` }]
+             };
+          } catch (e: any) {
+             return {
+                isError: true,
+                content: [{ type: 'text', text: `Error replacing string: ${e.message}` }]
+             };
+          }
+        }
+      )
+    ]
+  });
+}
+
+// 处理上传的文件，将其写入工作目录
+async function writeUploadedFiles(workspaceDir: string, uploadedFiles: any[]) {
+  if (!uploadedFiles || !Array.isArray(uploadedFiles) || uploadedFiles.length === 0) return '';
+
+  console.log('[API /api/chat] Writing uploaded files to workspace...');
+  for (const file of uploadedFiles) {
+    try {
+      const filePath = join(workspaceDir, file.path);
+      const fileDir = join(filePath, '..');
+      await mkdir(fileDir, { recursive: true });
+      await writeFile(filePath, file.content, 'utf-8');
+      console.log('[API /api/chat] Wrote file:', file.path);
+    } catch (error) {
+      console.error('[API /api/chat] Error writing file:', file.path, error);
+    }
+  }
+
+  // 准备上传文件的上下文
+  const fileList = uploadedFiles.map(file => `- ${file.path}`).join('\n');
+  const fileContents = uploadedFiles.map(file => 
+    `\`\`\`${file.path}\n${file.content}\n\`\`\``
+  ).join("\n\n");
+  
+  return `<CONTEXT_FILES>
+The following files are available in the workspace and should be used as context:
+${fileList}
+
+File contents:
+${fileContents}
+
+You can reference, read, or modify these files as needed.
+</CONTEXT_FILES>`;
+}
+
+// 设置文件监听器
+function setupFileWatcher(workspaceDir: string, controller: ReadableStreamDefaultController) {
+  let fsWait: NodeJS.Timeout | null = null;
+  try {
+    const watcher = watch(workspaceDir, { recursive: true }, (eventType, filename) => {
+      if (!filename || filename.startsWith('.') || filename.includes('node_modules')) return;
+
+      if (fsWait) clearTimeout(fsWait);
+      
+      fsWait = setTimeout(async () => {
+        fsWait = null;
+        try {
+          const filePath = join(workspaceDir, filename);
+          
+          try {
+            const stats = await import('fs/promises').then(fs => fs.stat(filePath));
+            if (!stats.isFile()) return;
+          } catch (e) {
+            return; // File vanished
+          }
+
+          const content = await readFile(filePath, 'utf-8');
+          
+          const fileEvent = {
+            type: 'file_update',
+            path: filename,
+            content: content
+          };
+          const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
+          controller.enqueue(new TextEncoder().encode(payload));
+          console.log('[API /api/chat] Watched file changed (debounced), pushed update:', filename);
+        } catch (e) {
+          console.error('[API /api/chat] Error reading watched file:', filename, e);
+        }
+      }, 300);
+    });
+    console.log('[API /api/chat] File watcher started for:', workspaceDir);
+    return watcher;
+  } catch (e) {
+    console.error('[API /api/chat] Failed to start file watcher:', e);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { message, history, sessionId: clientSessionId, uploadedFiles, knowledge, modelConfig } = await request.json();
     const sessionId = clientSessionId || randomUUID();
-
-    console.log('[API /api/chat] Received request:', { 
-      sessionId, 
-      message: message.substring(0, 100) + '...',
-      uploadedFilesCount: uploadedFiles?.length || 0,
-      hasKnowledge: !!knowledge,
-      modelConfig: modelConfig || 'default',
-    });
 
     if (!message) {
       return new Response(
@@ -76,49 +255,17 @@ export async function POST(request: NextRequest) {
 
     // 创建会话工作目录
     const workspaceDir = await createSessionWorkspace(sessionId);
-    console.log('[API /api/chat] Workspace directory:', workspaceDir);
-
-    // 🔥 关键：将上传的文件写入工作目录
-    if (uploadedFiles && Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
-      console.log('[API /api/chat] Writing uploaded files to workspace...');
-      for (const file of uploadedFiles) {
-        try {
-          const filePath = join(workspaceDir, file.path);
-          const fileDir = join(filePath, '..');
-          await mkdir(fileDir, { recursive: true });
-          await writeFile(filePath, file.content, 'utf-8');
-          console.log('[API /api/chat] Wrote file:', file.path);
-        } catch (error) {
-          console.error('[API /api/chat] Error writing file:', file.path, error);
-        }
-      }
-    }
+    
+    // 写入上传文件并获取上下文
+    const filesContext = await writeUploadedFiles(workspaceDir, uploadedFiles);
 
     const encoder = new TextEncoder();
-
-    // 准备上传文件的上下文
-    let filesContext = "";
-    if (uploadedFiles && Array.isArray(uploadedFiles) && uploadedFiles.length > 0) {
-      const fileList = uploadedFiles.map(file => `- ${file.path}`).join('\n');
-      const fileContents = uploadedFiles.map(file => 
-        `\`\`\`${file.path}\n${file.content}\n\`\`\``
-      ).join("\n\n");
-      filesContext = `<CONTEXT_FILES>
-The following files are available in the workspace and should be used as context:
-${fileList}
-
-File contents:
-${fileContents}
-
-You can reference, read, or modify these files as needed.
-</CONTEXT_FILES>`;
-    }
     
-    // 构建完整的 prompt，knowledge 和 filesContext 作为系统级约束
-    const fullPrompt = buildPrompt(history || [], message, knowledge, filesContext);
+    // 构建系统指令和用户消息
+    const systemInstructions = getSystemInstructions(knowledge);
+    const userMessage = buildUserMessage(message, filesContext);
 
     // 构建查询选项
-    // 🔥 修复：将前端的 'openai-api-key' 映射为 SDK 需要的 'openai'
     const frontendAuthType = modelConfig?.authType || 'qwen-oauth';
     const sdkAuthType = frontendAuthType === 'openai-api-key' ? 'openai' : 'qwen-oauth';
     
@@ -131,300 +278,76 @@ You can reference, read, or modify these files as needed.
       cwd: workspaceDir,
     };
 
-    // 🔥 修复：正确传递 model 参数给 SDK
     if (modelConfig?.model) {
       queryOptions.model = modelConfig.model;
-      console.log('[API /api/chat] Setting model:', modelConfig.model);
     }
 
-    // 🔥 修复：如果使用 OpenAI 认证，通过 env 参数传递环境变量
     if (frontendAuthType === 'openai-api-key' && modelConfig) {
       const envVars: Record<string, string> = {};
-      
-      if (modelConfig.apiKey) {
-        envVars.OPENAI_API_KEY = modelConfig.apiKey;
-      }
-      if (modelConfig.baseUrl) {
-        envVars.OPENAI_BASE_URL = modelConfig.baseUrl;
-      }
-      
-      // 将环境变量传递给 SDK
+      if (modelConfig.apiKey) envVars.OPENAI_API_KEY = modelConfig.apiKey;
+      if (modelConfig.baseUrl) envVars.OPENAI_BASE_URL = modelConfig.baseUrl;
       queryOptions.env = envVars;
-      console.log('[API /api/chat] OpenAI mode - env vars set (apiKey:', !!modelConfig.apiKey, ', baseUrl:', modelConfig.baseUrl, ')');
     }
 
-    console.log('[API /api/chat] Full prompt:', fullPrompt.substring(0, 200) + '...');
-    console.log('[API /api/chat] Creating query with options:', {
-      authType: queryOptions.authType,
-      model: queryOptions.model,
-      cwd: queryOptions.cwd,
-      includePartialMessages: queryOptions.includePartialMessages,
-      hasEnv: !!queryOptions.env,
-      envKeys: queryOptions.env ? Object.keys(queryOptions.env) : [],
-    });
-
-    // 添加工具权限回调到 options
-    // 用于旁路捕获文件变更并推送给前端
-    let streamController: ReadableStreamDefaultController | null = null;
-
-    // 添加工具权限回调到 options
-    // 用于旁路捕获文件变更并推送给前端
+    // Simple permission handling - allow all requested tools
     queryOptions.canUseTool = async (toolName: string, input: any) => {
-          console.log('[API /api/chat] Tool request:', toolName, JSON.stringify(input).substring(0, 200));
-          
-          // 允许所有文件操作工具（包括各种可能的命名方式）
-          const allowedTools = [
-            'write_file',      // SDK 实际使用的工具名
-            'create_file',
-            'edit_file', 
-            'file_replace',
-            'read_file',
-            'shell',
-            'bash',
-            'sh',
-            'run_shell',
-            'execute_shell',
-            'search_file',
-            'writefile',
-            'createfile',
-            'editfile',
-            'replace_string_in_file',
-            'list_files',
-            'listdir',
-            'ls',
-            'run_script',
-            'run_command',
-            'execute_command'
-          ];
-          
-          const toolNameLower = toolName.toLowerCase().replace(/[_-]/g, '');
-          const isAllowed = allowedTools.some(t => t.toLowerCase().replace(/[_-]/g, '') === toolNameLower);
-          
-          if (isAllowed) {
-            console.log('[API /api/chat] Tool allowed:', toolName);
-            
-            // Normalize inputs first to ensure we have clean relative paths
-            let normalizedInput = { ...input };
-            
-            if (input && typeof input === 'object') {
-              // 处理各种可能的路径字段名
-              const pathFields = ['path', 'file_path', 'filePath', 'relative_workspace_path'];
-              for (const field of pathFields) {
-                const fieldValue = normalizedInput[field];
-                if (fieldValue && typeof fieldValue === 'string') {
-                  let newPath = fieldValue;
-                  
-                  // Normalize: handle both /var and /private/var on macOS
-                  // to avoid "duplicate" file entries or "private/" folder appearing in UI
-                  const cleanWorkspace = workspaceDir.replace(/^\/private/, '');
-                  const cleanPath = newPath.replace(/^\/private/, '');
-
-                  // 1. 如果路径包含工作目录（绝对路径），移除它
-                  if (newPath.includes(workspaceDir)) {
-                    newPath = newPath.replace(workspaceDir, '');
-                  } else if (cleanPath.includes(cleanWorkspace)) {
-                    // Fallback for macOS /private mismatch
-                    newPath = cleanPath.replace(cleanWorkspace, '');
-                  }
-                  
-                  // 2. 移除开头的 / (变为相对路径)
-                  if (newPath.startsWith('/')) {
-                    newPath = newPath.substring(1);
-                  }
-                  
-                  // 3. 移除开头的 ./
-                  if (newPath.startsWith('./')) {
-                    newPath = newPath.substring(2);
-                  }
-
-                  normalizedInput[field] = newPath;
-                  // console.log(`[API /api/chat] Normalized ${field}: ${fieldValue} -> ${newPath}`);
-                }
-              }
-            }
-
-            // 🔥 Proactive Tool Execution (Manual Interception)
-            // Since we can't fully trust the SDK's internal tool implementations or their path resolution in this environment,
-            // we manually execute the write operations here to ensure the file on disk (in workspaceDir) is updated.
-            try {
-                if (toolNameLower === 'write_file' || toolNameLower === 'create_file') {
-                    if (normalizedInput.content) {
-                        const targetPath = join(workspaceDir, normalizedInput.path || normalizedInput.filePath || normalizedInput.file_path);
-                        const targetDir = join(targetPath, '..');
-                        await mkdir(targetDir, { recursive: true });
-                        await writeFile(targetPath, normalizedInput.content, 'utf-8');
-                        console.log(`[API /api/chat] 🟢 Manual Tool Exec: Wrote file ${targetPath}. Content Len: ${normalizedInput.content.length}`);
-                        // Log snippet to verify what AI wrote
-                        const snippet = normalizedInput.content.slice(0, 100).replace(/\n/g, '\\n');
-                        console.log(`[API /api/chat] 🟢 Written Content Snippet: ${snippet}`);
-                    }
-                } else if (toolNameLower === 'replace_string_in_file') {
-                    const targetPath = join(workspaceDir, normalizedInput.path || normalizedInput.filePath || normalizedInput.file_path);
-                    const oldStr = normalizedInput.oldString || normalizedInput.old_string;
-                    const newStr = normalizedInput.newString || normalizedInput.new_string;
-                    
-                    if (oldStr && newStr) {
-                         try {
-                             const currentContent = await readFile(targetPath, 'utf-8');
-                             if (currentContent.includes(oldStr)) {
-                                 const newContent = currentContent.replace(oldStr, newStr);
-                                 await writeFile(targetPath, newContent, 'utf-8');
-                                 console.log(`[API /api/chat] 🟢 Manual Tool Exec: Replaced string in ${targetPath}`);
-                             } else {
-                                 console.warn(`[API /api/chat] 🟡 Manual Tool Exec: oldString not found in ${targetPath}`);
-                                 // We don't block the allow behavior, let SDK fail naturally or report error
-                             }
-                         } catch (readErr) {
-                             console.error(`[API /api/chat] 🔴 Manual Tool Exec Link Failed to read ${targetPath}`, readErr);
-                         }
-                    }
-                }
-            } catch (manualExecErr) {
-                 console.error('[API /api/chat] 🔴 Manual Tool Execution Failed:', manualExecErr);
-                 // We still allow the SDK to try, maybe it works better?
-            }
-
-            // 🔥 流式优化：使用标准化后的路径推送文件更新
-            if (toolNameLower.includes('write') || toolNameLower.includes('create') || toolNameLower.includes('edit') || toolNameLower.includes('replace')) {
-               // Prioritize normalized path
-               const filePath = normalizedInput.file_path || normalizedInput.path || normalizedInput.filePath;
-               
-               if (filePath && streamController) {
-                  // For 'write_file'/'create_file', we expect full content.
-                  if ((toolName === 'write_file' || toolName === 'create_file') && normalizedInput.content) {
-                      const fileEvent = {
-                         type: 'file_update',
-                         path: filePath, // This is now a clean relative path
-                         content: normalizedInput.content
-                      };
-                      const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
-                      streamController.enqueue(new TextEncoder().encode(payload));
-                      console.log('[API /api/chat] Pushed file update via SSE:', filePath);
-                  }
-               }
-            }
-            
-            return {
-              behavior: 'allow',
-              updatedInput: normalizedInput,
-            };
-          }
-
-          
-      console.log('[API /api/chat] Tool denied:', toolName);
-      return {
-        behavior: 'deny',
-        message: `Tool ${toolName} is not allowed in this context`,
-      };
+        return { behavior: 'allow', updatedInput: input };
     };
-
-    console.log('[API /api/chat] Query options prepared');
 
     let q: any = null;
     let watcher: FSWatcher | null = null;
+    let streamController: ReadableStreamDefaultController | null = null;
 
     const stream = new ReadableStream({
       async start(controller) {
         streamController = controller;
-        console.log('[API /api/chat] streamController assigned');
+        const fileSystemServer = createFileSystemServer(workspaceDir, streamController);
+        
+        watcher = setupFileWatcher(workspaceDir, controller);
 
-        // Setup file watcher to sync changes back to frontend
         try {
-          let fsWait: NodeJS.Timeout | null = null;
-          watcher = watch(workspaceDir, { recursive: true }, (eventType, filename) => {
-             if (filename && !filename.startsWith('.') && !filename.includes('node_modules')) {
-               // Debounce: reset timer on every event to wait for the final state
-               if (fsWait) clearTimeout(fsWait);
-               
-               fsWait = setTimeout(async () => {
-                 fsWait = null;
-                 try {
-                   const filePath = join(workspaceDir, filename);
-                   
-                   // Verify file exists before reading (handle deletions/renames gracefully)
-                   try {
-                     const stats = await import('fs/promises').then(fs => fs.stat(filePath));
-                     if (!stats.isFile()) return; // Ignore directories
-                   } catch (e) {
-                     return; // File vanished
-                   }
-
-                   const content = await readFile(filePath, 'utf-8');
-                   
-                   const fileEvent = {
-                      type: 'file_update',
-                      path: filename,
-                      content: content
-                   };
-                   const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
-                   controller.enqueue(new TextEncoder().encode(payload));
-                   console.log('[API /api/chat] Watched file changed (debounced), pushed update:', filename);
-                 } catch (e) {
-                   console.error('[API /api/chat] Error reading watched file:', filename, e);
-                 }
-               }, 300); // Wait 300ms for writes to finish
-             }
-          });
-          console.log('[API /api/chat] File watcher started for:', workspaceDir);
-        } catch (e) {
-           console.error('[API /api/chat] Failed to start file watcher:', e);
-        }
-
-        let hasError = false;
-        try {
-          // Initialize query INSIDE the stream start to ensure controller is ready
           q = query({
-            prompt: createPromptStream(sessionId, fullPrompt),
-            options: queryOptions,
+            // @ts-ignore - We are using advanced SDK stream capabilities for System Prompt
+            prompt: createPromptStream(sessionId, systemInstructions, userMessage) as any,
+            options: {
+               ...queryOptions,
+               mcpServers: { 'local-fs': fileSystemServer }
+            },
           });
 
-          console.log('[API /api/chat] Waiting for q.initialized...');
           await q.initialized;
-          console.log('[API /api/chat] Query initialized successfully!');
           
-          // 发送会话 ID 给前端
-          const sessionInfo = JSON.stringify({
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
             type: 'session_info',
             sessionId,
             workspaceDir,
-          });
-          controller.enqueue(encoder.encode(`data: ${sessionInfo}\n\n`));
+          })}\n\n`));
           
-          // 🔥 关键修复：不要在遇到 result 时 break，让 SDK 完整处理所有消息
-          console.log('[API /api/chat] Starting to iterate over messages...');
           let messageCount = 0;
-          
-          // Track pending tool executions to proactively push file updates
-          const pendingToolFiles = new Map<string, string>(); // toolCallId -> filePath
+          const pendingToolFiles = new Map<string, string>(); 
 
           for await (const msg of q as AsyncIterable<SDKMessage>) {
             try {
               messageCount++;
               const msgType = (msg as any).type;
-              console.log(`[API /api/chat] Received message #${messageCount}, type:`, msgType);
-              
-              const jsonLine = JSON.stringify(msg);
-              controller.enqueue(encoder.encode(`data: ${jsonLine}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
               
               // 1. Detect Intent: When Assistant *requests* an edit, store the file path
               if (msgType === 'assistant' && (msg as any).message?.tool_calls) {
                   const toolCalls = (msg as any).message.tool_calls;
                   if (Array.isArray(toolCalls)) {
-                      console.log('[API /api/chat] Assistant Tool Calls:', JSON.stringify(toolCalls));
                       for (const call of toolCalls) {
                           if (call.function?.name) {
                               const name = call.function.name.toLowerCase();
                               if (name.includes('edit') || name.includes('replace') || name.includes('write') || name.includes('create')) {
                                   try {
                                       const args = JSON.parse(call.function.arguments || '{}');
-                                      // Handle various path parameter names
                                       const path = args.file_path || args.path || args.filePath || args.relative_workspace_path;
                                       if (path && call.id) {
                                           pendingToolFiles.set(call.id, path);
-                                          console.log(`[API /api/chat] Tracking pending edit for tool ${call.id} on file ${path}`);
                                       }
                                   } catch (e) {
-                                      console.error('[API /api/chat] Failed to parse tool args for tracking:', e);
+                                      // Ignore parsing errors
                                   }
                               }
                           }
@@ -432,138 +355,65 @@ You can reference, read, or modify these files as needed.
                   }
               }
 
-              // 2. Detect Completion: When Tool *updates* the system (msg.type might vary, but we look for 'tool' role messages or corresponding events)
-              // The SDK typically emits the tool execution result as a message with role='tool'
-              if (msgType === 'tool' || (msg as any).message?.role === 'tool') {
-                 const toolCallId = (msg as any).tool_call_id || (msg as any).message?.tool_call_id || (msg as any).parent_tool_use_id;
-                 
-                 if (toolCallId && pendingToolFiles.has(toolCallId)) {
-                     const filePath = pendingToolFiles.get(toolCallId);
-                     pendingToolFiles.delete(toolCallId);
-                     
-                     // Proactively read and push the update!
-                     if (filePath) {
-                         console.log(`[API /api/chat] Tool ${toolCallId} finished. Proactively pushing update for: ${filePath}`);
-                         setTimeout(async () => {
+              // 2. Handle Tool Result and Proactive Push
+              if (msgType === 'tool_result' || (msg as any).message?.role === 'tool') {
+                  const toolUseId = (msg as any).tool_use_id || (msg as any).tool_call_id || (msg as any).parent_tool_use_id;
+                  
+                  if (toolUseId && pendingToolFiles.has(toolUseId)) {
+                      const filePath = pendingToolFiles.get(toolUseId);
+                      pendingToolFiles.delete(toolUseId);
+                      
+                      if (filePath) {
+                          // Proactively push update
+                          setTimeout(async () => {
                              try {
-                                 // Handle absolute/relative path logic similar to canUseTool
-                                 let targetPath = filePath;
-                                 if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
-                                 
-                                 const fullPath = join(workspaceDir, targetPath);
+                                 const fullPath = join(workspaceDir, filePath.startsWith('/') ? filePath.substring(1) : filePath);
                                  const content = await readFile(fullPath, 'utf-8');
                                  
-                                 const fileEvent = {
+                                 const payload = `event: file\ndata: ${JSON.stringify({
                                     type: 'file_update',
-                                    path: targetPath,
+                                    path: filePath,
                                     content: content
-                                 };
-                                 const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
-                                 controller.enqueue(new TextEncoder().encode(payload));
-                                 console.log('[API /api/chat] Proactive push successful for:', targetPath);
+                                 })}\n\n`;
+                                 streamController?.enqueue(encoder.encode(payload));
                              } catch (e) {
-                                 console.error('[API /api/chat] Proactive push failed for:', filePath, e);
+                                 // Silent ignore if file read fails (maybe deleted)
                              }
-                         }, 100); // Small delay to let OS flush writes
-                     }
-                 }
-              }
-
-              // 2. Handle Tool Result: When tool execution finishes, verify and push file updates
-              if (msgType === 'tool_result') {
-                  const toolUseId = (msg as any).tool_use_id;
-                  const content = (msg as any).content;
-                  const isError = (msg as any).is_error;
-                  console.log(`[API /api/chat] Tool Result [${toolUseId}]. Error: ${isError}. Content Preview:`, JSON.stringify(content).substring(0, 200));
-                  
-                  if (isError) {
-                      console.error(`[API /api/chat] ❌ Tool Execution Failed!`, JSON.stringify(content));
-                  } else {
-                      // 如果是 modify 类操作且成功，手动触发一次文件检查（双重保险）
-                      const filePath = pendingToolFiles.get(toolUseId);
-                      if (filePath) {
-                          console.log(`[API /api/chat] ✅ Tool success for ${filePath}. Checking file on disk...`);
-                          try {
-                            // Give FS a tiny moment to flush
-                            await new Promise(r => setTimeout(r, 100)); 
-                            const fullPath = join(workspaceDir, filePath);
-                            const diskContent = await readFile(fullPath, 'utf-8');
-                            console.log(`[API /api/chat] Disk content for ${filePath} length: ${diskContent.length}`);
-                            
-                            // Push update immediately
-                            const fileEvent = {
-                                type: 'file_update',
-                                path: filePath,
-                                content: diskContent
-                            };
-                            const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
-                            streamController?.enqueue(encoder.encode(payload));
-                            console.log(`[API /api/chat] Pushed immediate update for ${filePath}`);
-                          } catch (err) {
-                             console.error(`[API /api/chat] Failed to read updated file ${filePath}:`, err);
-                          }
-                          pendingToolFiles.delete(toolUseId);
+                         }, 100);
                       }
                   }
               }
 
-              // 记录 result 消息但不 break，让循环自然结束
-              if ((msg as { type?: string }).type === 'result') {
-                console.log('[API /api/chat] Received result message, query will complete naturally');
-              }
             } catch (msgError) {
               console.error('[API /api/chat] Error processing message:', msgError);
-              // 继续处理下一条消息
             }
           }
           
-          console.log('[API /api/chat] Query stream completed successfully');
         } catch (error) {
-          hasError = true;
           console.error('[API /api/chat] Error streaming query:', error);
-          console.error('[API /api/chat] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           
           try {
             const errorLine = JSON.stringify({
               type: 'error',
               error: 'Error streaming query',
               message: error instanceof Error ? error.message : String(error),
-              timestamp: new Date().toISOString(),
             });
             controller.enqueue(encoder.encode(`data: ${errorLine}\n\n`));
           } catch (encodeError) {
             console.error('[API /api/chat] Error encoding error message:', encodeError);
           }
         } finally {
-          // 🔥 关键修复：延迟关闭流，给予文件监听器足够的时间 (debounce 300ms + IO) 来捕获最后的变更
-          console.log('[API /api/chat] Stream finished, waiting for pending file updates...');
+          // Delay to capture last updates
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          try {
-            await q.close();
-            console.log('[API /api/chat] Query closed successfully');
-          } catch (closeError) {
-            console.error('[API /api/chat] Error closing query:', closeError);
-          }
-
-          if (watcher) {
-             watcher.close();
-             console.log('[API /api/chat] File watcher closed');
-          }
-          
-          try {
-            controller.close();
-          } catch (controllerError) {
-            console.error('[API /api/chat] Error closing controller:', controllerError);
-          }
+          try { await q?.close(); } catch {}
+          if (watcher) watcher.close();
+          try { controller.close(); } catch {}
         }
       },
       cancel() {
-        if (watcher) {
-             watcher.close();
-        }
-        console.log('[API /api/chat] Stream cancelled for session:', sessionId);
-        void q.close();
+        if (watcher) watcher.close();
+        void q?.close();
       },
     });
 
