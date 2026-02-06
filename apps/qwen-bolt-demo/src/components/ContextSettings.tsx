@@ -12,7 +12,7 @@ export function ContextSettings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  // 当 settings 更新时或打开弹窗时，同步更新本地状态
+  // Sync local state when settings update or modal opens
   useEffect(() => {
     if (isOpen) {
       setKnowledgeText(settings.knowledge);

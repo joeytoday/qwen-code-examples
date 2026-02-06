@@ -14,13 +14,13 @@ const port = 3000;
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-// 存储终端会话
+// Store terminal sessions
 const terminals = new Map();
 
-// 存储开发服务器信息
+// Store dev server info
 const devServers = new Map(); // sessionId -> { port, framework, proxy }
 
-// 创建代理服务器
+// Create proxy server
 const proxy = httpProxy.createProxyServer({
   changeOrigin: true,
   ws: true,
@@ -31,7 +31,7 @@ app.prepare().then(() => {
     try {
       const parsedUrl = parse(req.url, true);
       
-      // 处理代理请求
+      // Handle proxy requests
       if (req.url.startsWith('/dev-server/')) {
         const sessionId = parsedUrl.query.sessionId;
         if (sessionId && devServers.has(sessionId)) {
@@ -59,7 +59,7 @@ app.prepare().then(() => {
     }
   });
 
-  // 创建 Socket.IO 服务器
+  // Create Socket.IO server
   const io = new SocketIOServer(server, {
     path: '/api/socket/socket.io',
     cors: {
@@ -78,7 +78,7 @@ app.prepare().then(() => {
         const platform = process.platform;
         let cwd = process.cwd();
         
-        // 尝试切换到会话工作目录
+        // Try to switch to the session workspace directory
         if (sessionId) {
             try {
                 const path = require('path');
@@ -100,24 +100,24 @@ app.prepare().then(() => {
         let terminal;
 
         if (platform === 'win32') {
-          // Windows: 使用 PowerShell
+          // Windows: use PowerShell
           terminal = spawn('powershell.exe', [], {
             cwd,
             env: process.env,
           });
           console.log('[Socket.IO] Started PowerShell (Windows)');
         } else {
-          // macOS/Linux: 使用 Python 的 pty 模块
-          // 这是一个完全使用标准库的方案，不需要编译原生模块
-          // -u 参数强制 python 使用无缓冲 I/O，这对于实时终端至关重要
+          // macOS/Linux: use Python's pty module
+          // This is a pure stdlib approach that doesn't require compiling native modules
+          // The -u flag forces Python to use unbuffered I/O, which is critical for real-time terminal
           const shell = process.env.SHELL || '/bin/zsh';
           
-          // 修改 Prompt 环境变量，隐藏长路径，只显示当前目录名或自定义提示符
-          // 注意：不同 Shell 配置 Prompt 的环境变量不同，这里主要针对 Zsh/Bash
+          // Override the prompt env var to hide long paths, showing only the current directory name or a custom prompt
+          // Note: different shells use different env vars for the prompt; this mainly targets Zsh/Bash
           const env = {
               ...process.env,
               TERM: 'xterm-256color',
-              // 尝试覆盖 PS1 环境变量以简化路径显示
+              // Try to override PS1 env var to simplify path display
               // \W: basename of cwd, \$: prompt char
               PS1: '\\W \\$ ', 
           };
@@ -135,11 +135,11 @@ app.prepare().then(() => {
         terminals.set(socket.id, terminal);
         socket.emit('terminal-ready');
 
-        // 处理输出 (PTY -> Socket)
+        // Handle output (PTY -> Socket)
         terminal.stdout.on('data', (data) => {
           socket.emit('output', data.toString());
           
-          // 顺便检测 dev server
+          // Also detect dev server
           const output = data.toString();
           const detection = detectDevServer(output);
           if (detection.detected && detection.port) {
@@ -153,7 +153,7 @@ app.prepare().then(() => {
           }
         });
 
-        // 错误处理
+        // Error handling
         terminal.stderr.on('data', (data) => {
           console.error('[Terminal Stderr]:', data.toString());
           socket.emit('output', data.toString());
@@ -181,8 +181,8 @@ app.prepare().then(() => {
     socket.on('input', (data) => {
       const terminal = terminals.get(socket.id);
       if (terminal) {
-          // 将输入直接写入到 Python 桥接进程的标准输入
-          // Python 的 pty.spawn 会自动处理这些输入并转发给 Shell
+          // Write input directly to the Python bridge process's stdin
+          // Python's pty.spawn will automatically handle and forward these inputs to the shell
           try {
             terminal.stdin.write(data);
           } catch(e) {
@@ -192,8 +192,8 @@ app.prepare().then(() => {
     });
 
     socket.on('resize', ({ cols, rows }) => {
-       // Python PTY 桥接模式下很难调整大小，我们可以尝试发送 SIGWINCH 但需要 native 模块
-       // 暂时忽略 resize，保证核心输入输出可用
+       // Resizing is difficult under the Python PTY bridge; we could try sending SIGWINCH but that requires a native module
+       // For now, ignore resize to keep core I/O functional
     });
 
     socket.on('disconnect', () => {
@@ -206,7 +206,7 @@ app.prepare().then(() => {
     });
   });
   
-  // 开发服务器检测函数
+  // Dev server detection function
   function detectDevServer(output) {
     const patterns = [
       // Vite
@@ -229,7 +229,7 @@ app.prepare().then(() => {
       { regex: /Angular Live Development Server is listening/, framework: 'Angular', defaultPort: 4200 },
       { regex: /Local:\s+http:\/\/localhost:(\d+)/, framework: 'Angular' },
       
-      // 通用模式
+      // Generic pattern
       { regex: /http:\/\/localhost:(\d+)/, framework: 'Unknown' },
     ];
 

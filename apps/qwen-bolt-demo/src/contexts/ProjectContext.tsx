@@ -136,7 +136,7 @@ export function useProject() {
   return context;
 }
 
-// 用于检查是否在 Provider 内部
+// Check whether we are inside a Provider
 export function useProjectOptional() {
   return useContext(ProjectContext);
 }

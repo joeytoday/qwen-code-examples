@@ -27,14 +27,14 @@ export function TerminalPanel({ devServerLogs = [], sessionId, isOpen = true, on
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('bolt');
-  // 默认不创建 Terminal，用户需要时再添加，或者自动添加一个 Terminal-1 但要确保它拿到 sessionId
+  // Don't create terminals by default; add when needed, or auto-create Terminal-1 once sessionId is available
   const [terminals, setTerminals] = useState<TerminalTab[]>([]);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 监听 sessionId 变化，一旦有了 sessionId，如果列表为空，自动创建一个连接到该 session 的终端
+  // Watch for sessionId changes; once available, auto-create a terminal connected to the session if the list is empty
   useEffect(() => {
     if (sessionId && terminals.length === 0) {
        setTerminals([{ id: 'terminal-1', name: 'Terminal 1' }]);

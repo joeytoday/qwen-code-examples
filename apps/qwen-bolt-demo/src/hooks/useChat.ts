@@ -133,13 +133,13 @@ export function useChat({ settings, sessionId, setSessionId, loadAllFiles, onFil
                       }
                     }
 
-                    // 优化：虽然有流式更新 (onFileUpdate)，但在会话结束时全量拉取一次作为兜底
-                    // 确保任何丢失的文件监听事件（fs.watch 不稳定时）都能被修正，保证最终一致性
+                    // Optimization: even though we have streaming updates (onFileUpdate), do a full fetch at end of turn as a fallback
+                    // This ensures any missed file watch events (fs.watch can be unreliable) are corrected for eventual consistency
                     if (currentSessionId) {
                       setTimeout(() => {
                         console.log('[useChat] Turn complete, performing final consistency check (loadAllFiles)');
                         loadAllFiles(currentSessionId);
-                      }, 500); // 稍微延迟，确保文件系统 I/O 完成
+                      }, 500); // Slight delay to ensure filesystem I/O completes
                     }
                     break;
                   }
