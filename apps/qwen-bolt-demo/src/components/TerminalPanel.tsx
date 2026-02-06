@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Terminal as TerminalIcon, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
-import Terminal from './Terminal';
+import dynamic from 'next/dynamic';
+
+const Terminal = dynamic(() => import('./Terminal'), {
+  ssr: false,
+  loading: () => <div className="h-full bg-zinc-900 flex items-center justify-center text-zinc-500">Initializing Terminal...</div>
+});
 
 interface TerminalTab {
   id: string;

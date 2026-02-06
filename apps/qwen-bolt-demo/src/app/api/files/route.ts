@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, readFile, stat } from 'fs/promises';
+import { readdir, readFile, stat, realpath } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -65,8 +65,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const sessionId = searchParams.get('sessionId');
     const filePath = searchParams.get('path');
+    const t = searchParams.get('t'); // Timestamp for cache busting
 
-    console.log('[API /api/files] Request:', { sessionId, filePath });
+    console.log('[API /api/files] Request:', { sessionId, filePath, t });
 
     if (!sessionId) {
       return NextResponse.json(
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
       
       try {
         const content = await readFile(fullPath, 'utf-8');
+        console.log(`[API /api/files] Read content for ${filePath}. Length: ${content.length}`);
         return NextResponse.json({ success: true, content });
       } catch (error) {
         console.error('[API /api/files] Error reading file:', error);

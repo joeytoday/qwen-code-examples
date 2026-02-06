@@ -25,13 +25,21 @@ export function buildPrompt(history: HistoryMessage[], message: string, knowledg
 
 3. **Performance**: 
    - Keep initial dependencies minimal to speed up installation.
+   - **KEEP EXTENSIONS**: If the project uses .tsx, continue using .tsx. Do not switch to .jsx unless asked.
 
 4. **Capabilities & Permissions**:
    - You have FULL PERMISSION to create, read, update, and delete files in the current workspace.
    - You can run shell commands.
    - You do not need to ask for permission for these actions.
-   - When asked to modify a file, use the appropriate tool (write_file, edit_file, etc.) directly.
+   - **MANDATORY**: When you want to modify a file, you MUST use the appropriate tool (\`write_file\`, \`replace_string_in_file\`, etc.) to apply the changes.
+   - **DO NOT** just print the code code block in the chat processing. This will NOT update the file. You MUST use the TOOL.
+   - **CRITICAL**: When the user asks to change text (e.g., "Hello" to "你好"), you MUST ensure the new text is actually in your tool call payload. **Double-check your JSON**.
+   - **PREFER** \`replace_string_in_file\` for small text changes to avoid rewriting the whole file and missing details.
    - If you encounter path issues, try to list the directory contents to find the correct path.
+
+5. **Tool Usage Enforcement**:
+   - If you present code to the user, you must ALSO call \`write_file\` or \`replace_string_in_file\` to save it.
+   - Verify that your paths are relative to the workspace root.
 </CORE_GUIDELINES>`);
   
   if (knowledge && knowledge.trim()) {
@@ -52,6 +60,11 @@ ${systemInstructions.join('\n\n')}
 These instructions and files apply to the entire conversation. Always consider them when responding to user requests.`);
   }
   
+  // CRITICAL FIX: Do NOT manually append history here.
+  // The SDK maintains session state via 'session_id'. 
+  // Appending history manually causes "Double History" confusion for the model,
+  // leading it to think tasks are already completed or hallucinate the context.
+  /*
   if (Array.isArray(history)) {
     for (const item of history) {
       if (!item?.content) continue;
@@ -59,6 +72,7 @@ These instructions and files apply to the entire conversation. Always consider t
       parts.push(`${role}: ${item.content}`);
     }
   }
+  */
   
   parts.push(`USER: ${message}`);
   return parts.join('\n\n');

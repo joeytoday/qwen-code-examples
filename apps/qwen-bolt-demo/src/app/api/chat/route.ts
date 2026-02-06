@@ -243,6 +243,47 @@ You can reference, read, or modify these files as needed.
               }
             }
 
+            // 🔥 Proactive Tool Execution (Manual Interception)
+            // Since we can't fully trust the SDK's internal tool implementations or their path resolution in this environment,
+            // we manually execute the write operations here to ensure the file on disk (in workspaceDir) is updated.
+            try {
+                if (toolNameLower === 'write_file' || toolNameLower === 'create_file') {
+                    if (normalizedInput.content) {
+                        const targetPath = join(workspaceDir, normalizedInput.path || normalizedInput.filePath || normalizedInput.file_path);
+                        const targetDir = join(targetPath, '..');
+                        await mkdir(targetDir, { recursive: true });
+                        await writeFile(targetPath, normalizedInput.content, 'utf-8');
+                        console.log(`[API /api/chat] 🟢 Manual Tool Exec: Wrote file ${targetPath}. Content Len: ${normalizedInput.content.length}`);
+                        // Log snippet to verify what AI wrote
+                        const snippet = normalizedInput.content.slice(0, 100).replace(/\n/g, '\\n');
+                        console.log(`[API /api/chat] 🟢 Written Content Snippet: ${snippet}`);
+                    }
+                } else if (toolNameLower === 'replace_string_in_file') {
+                    const targetPath = join(workspaceDir, normalizedInput.path || normalizedInput.filePath || normalizedInput.file_path);
+                    const oldStr = normalizedInput.oldString || normalizedInput.old_string;
+                    const newStr = normalizedInput.newString || normalizedInput.new_string;
+                    
+                    if (oldStr && newStr) {
+                         try {
+                             const currentContent = await readFile(targetPath, 'utf-8');
+                             if (currentContent.includes(oldStr)) {
+                                 const newContent = currentContent.replace(oldStr, newStr);
+                                 await writeFile(targetPath, newContent, 'utf-8');
+                                 console.log(`[API /api/chat] 🟢 Manual Tool Exec: Replaced string in ${targetPath}`);
+                             } else {
+                                 console.warn(`[API /api/chat] 🟡 Manual Tool Exec: oldString not found in ${targetPath}`);
+                                 // We don't block the allow behavior, let SDK fail naturally or report error
+                             }
+                         } catch (readErr) {
+                             console.error(`[API /api/chat] 🔴 Manual Tool Exec Link Failed to read ${targetPath}`, readErr);
+                         }
+                    }
+                }
+            } catch (manualExecErr) {
+                 console.error('[API /api/chat] 🔴 Manual Tool Execution Failed:', manualExecErr);
+                 // We still allow the SDK to try, maybe it works better?
+            }
+
             // 🔥 流式优化：使用标准化后的路径推送文件更新
             if (toolNameLower.includes('write') || toolNameLower.includes('create') || toolNameLower.includes('edit') || toolNameLower.includes('replace')) {
                // Prioritize normalized path
@@ -369,6 +410,7 @@ You can reference, read, or modify these files as needed.
               if (msgType === 'assistant' && (msg as any).message?.tool_calls) {
                   const toolCalls = (msg as any).message.tool_calls;
                   if (Array.isArray(toolCalls)) {
+                      console.log('[API /api/chat] Assistant Tool Calls:', JSON.stringify(toolCalls));
                       for (const call of toolCalls) {
                           if (call.function?.name) {
                               const name = call.function.name.toLowerCase();
@@ -425,6 +467,44 @@ You can reference, read, or modify these files as needed.
                          }, 100); // Small delay to let OS flush writes
                      }
                  }
+              }
+
+              // 2. Handle Tool Result: When tool execution finishes, verify and push file updates
+              if (msgType === 'tool_result') {
+                  const toolUseId = (msg as any).tool_use_id;
+                  const content = (msg as any).content;
+                  const isError = (msg as any).is_error;
+                  console.log(`[API /api/chat] Tool Result [${toolUseId}]. Error: ${isError}. Content Preview:`, JSON.stringify(content).substring(0, 200));
+                  
+                  if (isError) {
+                      console.error(`[API /api/chat] ❌ Tool Execution Failed!`, JSON.stringify(content));
+                  } else {
+                      // 如果是 modify 类操作且成功，手动触发一次文件检查（双重保险）
+                      const filePath = pendingToolFiles.get(toolUseId);
+                      if (filePath) {
+                          console.log(`[API /api/chat] ✅ Tool success for ${filePath}. Checking file on disk...`);
+                          try {
+                            // Give FS a tiny moment to flush
+                            await new Promise(r => setTimeout(r, 100)); 
+                            const fullPath = join(workspaceDir, filePath);
+                            const diskContent = await readFile(fullPath, 'utf-8');
+                            console.log(`[API /api/chat] Disk content for ${filePath} length: ${diskContent.length}`);
+                            
+                            // Push update immediately
+                            const fileEvent = {
+                                type: 'file_update',
+                                path: filePath,
+                                content: diskContent
+                            };
+                            const payload = `event: file\ndata: ${JSON.stringify(fileEvent)}\n\n`;
+                            streamController?.enqueue(encoder.encode(payload));
+                            console.log(`[API /api/chat] Pushed immediate update for ${filePath}`);
+                          } catch (err) {
+                             console.error(`[API /api/chat] Failed to read updated file ${filePath}:`, err);
+                          }
+                          pendingToolFiles.delete(toolUseId);
+                      }
+                  }
               }
 
               // 记录 result 消息但不 break，让循环自然结束

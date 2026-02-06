@@ -2,9 +2,11 @@
 
 import React, { useEffect, useRef } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Annotation } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
+
+const SyncAnnotation = Annotation.define<boolean>();
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { CodeEditorPanelProps } from './types';
@@ -20,6 +22,8 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
   onChange,
   searchQuery,
 }) => {
+  console.log(`[CodeEditorPanel] Render. File: ${file}, ReadOnly: ${readOnly}, CodeLen: ${code?.length}, Preview: ${code?.slice(0, 30).replace(/\n/g, '\\n')}...`);
+
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const { settings } = useEditor();
@@ -81,8 +85,15 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
         EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && onChange && !readOnly) {
-            const newCode = update.state.doc.toString();
-            onChange(newCode, file);
+            // Validate if this is an external sync update
+            const isExternal = update.transactions.some(tr => tr.annotation(SyncAnnotation));
+            if (isExternal) {
+                console.log('[CodeEditorPanel] Skipping onChange for external sync update');
+            } else {
+              // console.log('[CodeEditorPanel] Triggering onChange from user input');
+              const newCode = update.state.doc.toString();
+              onChange(newCode, file);
+            }
           }
         }),
         EditorView.theme({
@@ -135,13 +146,18 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
 
   // 更新代码内容
   useEffect(() => {
+    const currentDoc = viewRef.current?.state.doc.toString();
+    console.log(`[CodeEditorPanel] Effect[code]. File: ${file}, PropCodeLen: ${code?.length}, CurrentDocLen: ${currentDoc?.length}, NeedsUpdate: ${viewRef.current && code !== currentDoc}`);
+    
     if (viewRef.current && code !== viewRef.current.state.doc.toString()) {
+      console.log('[CodeEditorPanel] Dispatching Sync Transaction...');
       const transaction = viewRef.current.state.update({
         changes: {
           from: 0,
           to: viewRef.current.state.doc.length,
           insert: code,
         },
+        annotations: [SyncAnnotation.of(true)],
       });
       viewRef.current.dispatch(transaction);
     }

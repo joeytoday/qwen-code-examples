@@ -18,11 +18,16 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
   // Sync files to WebContainer whenever they change
   useEffect(() => {
     async function syncFiles() {
-      if (!webcontainer || Object.keys(files).length === 0) return;
+      if (!webcontainer || Object.keys(files).length === 0) {
+          console.log('[DevServer] syncFiles skipped. WC ready:', !!webcontainer, 'FileCount:', Object.keys(files).length);
+          return;
+      }
       
       try {
+        console.log('[DevServer] Syncing files to WebContainer. Count:', Object.keys(files).length);
         const tree = convertFilesToTree(files);
         await webcontainer.mount(tree);
+        console.log('[DevServer] Files synced successfully.');
         // Note: We don't log 'Files synced' every time to avoid cluttering the console in typical usage,
         // but it's useful for debugging.
       } catch (error) {
@@ -34,7 +39,20 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
   }, [webcontainer, files]);
 
   const startDevServer = useCallback(async () => {
-    if (!webcontainer || isStartingServer) return;
+    console.log('[DevServer Debug] startDevServer called. WC ready:', !!webcontainer, 'isStarting:', isStartingServer);
+    
+    // If webcontainer is not ready, we can't start. 
+    // BUT we should tell the user WHY instead of failing silently.
+    if (!webcontainer) {
+        setDevServerLogs(prev => [...prev, '[Error] WebContainer environment is not ready yet. Please wait a moment or refresh the page.']);
+        console.error('[DevServer Debug] Aborting start: WebContainer not initialized.');
+        return;
+    }
+
+    if (isStartingServer) {
+        console.log('[DevServer Debug] Aborting start: Already starting.');
+        return;
+    }
 
     setIsStartingServer(true);
     setServerError('');
@@ -43,6 +61,7 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
 
     try {
       const projectRoot = findProjectRoot(files);
+      console.log(`[DevServer Debug] Project root detected: ${projectRoot}`);
       setDevServerLogs(prev => [...prev, `[WebContainer] Project root detected: ${projectRoot}`]);
       
       const spawnOptions = { 
@@ -57,6 +76,8 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
         f.endsWith(`/${projectRoot}/package.json`) // Handle potential leading slash variations
       );
       
+      console.log(`[DevServer Debug] Package.json search. Root: ${projectRoot}, Found Path: ${packageJsonPath}`);
+
       const packageJsonContent = packageJsonPath ? files[packageJsonPath] : null;
       let startCommand = 'dev'; // default
 
@@ -74,8 +95,8 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
          if (packageJsonContent !== lastInstalledPackageJsonRef.current) {
             setDevServerLogs(prev => [...prev, '[WebContainer] Installing dependencies... (This may take a few minutes for the first run)']);
             
-            // Using 'npm install'
-            const installProcess = await webcontainer.spawn('npm', ['install'], spawnOptions);
+            // Using 'npm install' with optimizations
+            const installProcess = await webcontainer.spawn('npm', ['install', '--no-audit', '--no-fund', '--prefer-offline'], spawnOptions);
             installProcessRef.current = installProcess;
             
             // Stream output
@@ -101,6 +122,7 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
 
       // 2. Start Dev Server
       setDevServerLogs(prev => [...prev, `[WebContainer] Starting dev server (npm run ${startCommand})...`]);
+      console.log(`[DevServer] Spawning npm run ${startCommand}`);
       
       const devProcess = await webcontainer.spawn('npm', ['run', startCommand], spawnOptions);
       devProcessRef.current = devProcess;

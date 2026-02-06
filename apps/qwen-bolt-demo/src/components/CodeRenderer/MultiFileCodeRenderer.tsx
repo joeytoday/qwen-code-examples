@@ -23,6 +23,8 @@ export const MultiFileCodeRenderer: React.FC<
   const filePaths = React.useMemo(() => Object.keys(files).sort(), [files]);
   const activeFile = propActiveFile || filePaths[0] || '';
 
+  console.log(`[MultiFileCodeRenderer] Render. Active: ${activeFile}, FileHash: ${files[activeFile]?.slice(0,20).replace(/\n/g, '\\n')}..., FileKeys: ${Object.keys(files).length}`);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fileTreeWidth, setFileTreeWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);

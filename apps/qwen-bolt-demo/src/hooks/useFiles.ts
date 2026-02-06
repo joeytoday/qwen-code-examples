@@ -45,8 +45,9 @@ export function useFiles(initialSessionId: string = '') {
         await Promise.all(
           filePaths.map(async (path) => {
             try {
+              // Add timestamp to prevent caching
               const fileResponse = await fetch(
-                `/api/files?sessionId=${sid}&path=${encodeURIComponent(path)}`
+                `/api/files?sessionId=${sid}&path=${encodeURIComponent(path)}&t=${Date.now()}`
               );
               const fileData = await fileResponse.json();
               if (fileData.success && fileData.content) {

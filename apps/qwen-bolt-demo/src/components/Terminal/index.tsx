@@ -39,13 +39,17 @@ const Terminal = React.forwardRef<any, TerminalProps>(({ containerId, socketUrl,
     hasEmittedInitialResize.current = false;
 
     const initTerminal = async () => {
-      const [{ Terminal: XTerm }, { FitAddon }, { ClipboardAddon }, { SearchAddon }] =
-        await Promise.all([
-          import('@xterm/xterm'),
-          import('@xterm/addon-fit'),
-          import('@xterm/addon-clipboard'),
-          import('@xterm/addon-search'),
-        ]);
+      try {
+        const [{ Terminal: XTerm }, { FitAddon }, { ClipboardAddon }, { SearchAddon }] =
+          await Promise.all([
+            import('@xterm/xterm'),
+            import('@xterm/addon-fit'),
+            import('@xterm/addon-clipboard'),
+            import('@xterm/addon-search'),
+          ]);
+
+        // Safety check if component unmounted during load
+        if (!xtermRef.current) return;
 
       const term = new XTerm({
         fontSize: 14,
@@ -140,7 +144,11 @@ const Terminal = React.forwardRef<any, TerminalProps>(({ containerId, socketUrl,
         socket.disconnect();
         resizeObserver.disconnect();
       };
-    };
+    } catch (error) {
+      console.error('Failed to initialize terminal:', error);
+      return undefined;
+    }
+  };
 
     const cleanup = initTerminal();
     return () => {
