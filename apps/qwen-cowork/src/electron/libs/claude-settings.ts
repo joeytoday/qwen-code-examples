@@ -8,130 +8,98 @@ import { loadApiConfig, saveApiConfig, type ApiConfig } from "./config-store.js"
 export function getCurrentApiConfig(): ApiConfig | null {
   const uiConfig = loadApiConfig();
   if (uiConfig) {
-    console.log("[claude-settings] Using UI config:", {
-      baseURL: uiConfig.baseURL,
-      model: uiConfig.model,
-      apiType: uiConfig.apiType
-    });
     return uiConfig;
   }
 
-  // Try ~/.qwen/settings.json first
+  // Try ~/.qwen/settings.json
   try {
     const qwenSettingsPath = join(homedir(), ".qwen", "settings.json");
     const raw = readFileSync(qwenSettingsPath, "utf8");
-    const parsed = JSON.parse(raw) as { env?: Record<string, unknown> };
+    const parsed = JSON.parse(raw);
+    
+    // Support both env format and direct format
+    let apiKey, baseURL, model;
+    
+    // Check for env format first
     if (parsed.env) {
-      // Support multiple API key formats
-      const apiKey = parsed.env.QWEN_API_KEY || parsed.env.OPENAI_API_KEY || parsed.env.ANTHROPIC_AUTH_TOKEN;
-      const baseURL = parsed.env.QWEN_BASE_URL || parsed.env.OPENAI_BASE_URL || parsed.env.ANTHROPIC_BASE_URL;
-      const model = parsed.env.QWEN_MODEL || parsed.env.OPENAI_MODEL || parsed.env.ANTHROPIC_MODEL;
+      apiKey = parsed.env.QWEN_API_KEY;
+      baseURL = parsed.env.QWEN_BASE_URL;
+      model = parsed.env.QWEN_MODEL;
+    }
+    
+    // Check for direct format (new Qwen settings format)
+    if (!apiKey && parsed.security?.auth) {
+      apiKey = parsed.security.auth.apiKey;
+      baseURL = parsed.security.auth.baseUrl;
+      model = parsed.model?.name;
+    }
 
-      if (apiKey && baseURL && model) {
-        console.log("[claude-settings] Using Qwen config from ~/.qwen/settings.json");
-        const config: ApiConfig = {
-          apiKey: String(apiKey),
-          baseURL: String(baseURL),
-          model: String(model),
-          apiType: "anthropic"
-        };
-        // Persist to api-config.json
-        try {
-          saveApiConfig(config);
-          console.log("[claude-settings] Persisted config to api-config.json");
-        } catch (e) {
-          console.error("[claude-settings] Failed to persist config:", e);
-        }
-        return config;
+    if (apiKey && baseURL && model) {
+      console.log("[claude-settings] Using Qwen config from ~/.qwen/settings.json");
+      const config: ApiConfig = {
+        apiKey: String(apiKey),
+        baseURL: String(baseURL),
+        model: String(model),
+        apiType: "openai"
+      };
+      // Persist to api-config.json
+      try {
+        saveApiConfig(config);
+        console.log("[claude-settings] Persisted config to api-config.json");
+      } catch (e) {
+        console.error("[claude-settings] Failed to persist config:", e);
       }
+      return config;
     }
   } catch {
     // Ignore missing or invalid Qwen settings file
-  }
-
-  // Fallback to ~/.claude/settings.json for backward compatibility
-  try {
-    const settingsPath = join(homedir(), ".claude", "settings.json");
-    const raw = readFileSync(settingsPath, "utf8");
-    const parsed = JSON.parse(raw) as { env?: Record<string, unknown> };
-    if (parsed.env) {
-      const authToken = parsed.env.ANTHROPIC_AUTH_TOKEN;
-      const baseURL = parsed.env.ANTHROPIC_BASE_URL;
-      const model = parsed.env.ANTHROPIC_MODEL;
-
-      if (authToken && baseURL && model) {
-        console.log("[claude-settings] Using Claude config from ~/.claude/settings.json (legacy)");
-        const config: ApiConfig = {
-          apiKey: String(authToken),
-          baseURL: String(baseURL),
-          model: String(model),
-          apiType: "anthropic"
-        };
-        // Persist to api-config.json
-        try {
-          saveApiConfig(config);
-          console.log("[claude-settings] Persisted config to api-config.json");
-        } catch (e) {
-          console.error("[claude-settings] Failed to persist config:", e);
-        }
-        return config;
-      }
-    }
-  } catch {
-    // Ignore missing or invalid Claude settings file
   }
   
   console.log("[claude-settings] No config found");
   return null;
 }
 
-// Environment variable keys for Qwen/OpenAI compatible configuration
+// Environment variable keys for Qwen configuration
 // These can be configured via ~/.qwen/settings.json or environment variables
 const QWEN_SETTINGS_ENV_KEYS = [
-  "ANTHROPIC_AUTH_TOKEN",   // Legacy: for backward compatibility
-  "ANTHROPIC_BASE_URL",     // Legacy: for backward compatibility
-  "ANTHROPIC_MODEL",        // Legacy: for backward compatibility
-  "OPENAI_API_KEY",         // OpenAI-compatible API key
-  "OPENAI_BASE_URL",        // OpenAI-compatible base URL
-  "OPENAI_MODEL",           // OpenAI-compatible model name
-  "QWEN_API_KEY",           // Qwen-specific API key
-  "QWEN_BASE_URL",          // Qwen-specific base URL
-  "QWEN_MODEL",             // Qwen-specific model name
+  "QWEN_API_KEY",           // Qwen API key
+  "QWEN_BASE_URL",          // Qwen base URL
+  "QWEN_MODEL",             // Qwen model name
+  "QWEN_AUTH_TYPE",         // Qwen auth type (e.g., 'api-key')
   "API_TIMEOUT_MS",
   "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"
 ] as const;
 
 export function loadClaudeSettingsEnv(): ClaudeSettingsEnv {
-  // Try loading from Qwen settings first
+  // Try loading from Qwen settings
   try {
     const qwenSettingsPath = join(homedir(), ".qwen", "settings.json");
     const raw = readFileSync(qwenSettingsPath, "utf8");
-    const parsed = JSON.parse(raw) as { env?: Record<string, unknown> };
+    const parsed = JSON.parse(raw);
+    
+    // Support both env format and direct format
     if (parsed.env) {
       for (const [key, value] of Object.entries(parsed.env)) {
         if (process.env[key] === undefined && value !== undefined && value !== null) {
           process.env[key] = String(value);
         }
       }
+    }
+    
+    // Support direct format (new Qwen settings format)
+    if (parsed.security?.auth) {
+      if (process.env.QWEN_API_KEY === undefined && parsed.security.auth.apiKey) {
+        process.env.QWEN_API_KEY = String(parsed.security.auth.apiKey);
+      }
+      if (process.env.QWEN_BASE_URL === undefined && parsed.security.auth.baseUrl) {
+        process.env.QWEN_BASE_URL = String(parsed.security.auth.baseUrl);
+      }
+    }
+    if (parsed.model?.name && process.env.QWEN_MODEL === undefined) {
+      process.env.QWEN_MODEL = String(parsed.model.name);
     }
   } catch {
     // Ignore missing or invalid Qwen settings file
-  }
-
-  // Fallback to Claude settings for backward compatibility
-  try {
-    const settingsPath = join(homedir(), ".claude", "settings.json");
-    const raw = readFileSync(settingsPath, "utf8");
-    const parsed = JSON.parse(raw) as { env?: Record<string, unknown> };
-    if (parsed.env) {
-      for (const [key, value] of Object.entries(parsed.env)) {
-        if (process.env[key] === undefined && value !== undefined && value !== null) {
-          process.env[key] = String(value);
-        }
-      }
-    }
-  } catch {
-    // Ignore missing or invalid Claude settings file
   }
 
   const env = {} as ClaudeSettingsEnv;

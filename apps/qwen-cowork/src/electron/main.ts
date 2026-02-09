@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, globalShortcut, Menu } from "electron"
+import { app, BrowserWindow, ipcMain, dialog, globalShortcut, Menu, shell } from "electron"
 import { execSync } from "child_process";
 import { ipcMainHandle, isDev, DEV_PORT } from "./util.js";
 import { getPreloadPath, getUIPath, getIconPath } from "./pathResolver.js";
@@ -19,7 +19,8 @@ function killViteDevServer(): void {
         if (process.platform === 'win32') {
             execSync(`for /f "tokens=5" %a in ('netstat -ano ^| findstr :${DEV_PORT}') do taskkill /PID %a /F`, { stdio: 'ignore', shell: 'cmd.exe' });
         } else {
-            // First try graceful shutdown with SIGTERM, then force kill if needed
+            // More aggressive cleanup to prevent port conflicts
+            execSync(`pkill -f "vite.*${DEV_PORT}" 2>/dev/null || true`, { stdio: 'ignore' });
             execSync(`lsof -ti:${DEV_PORT} | xargs kill -15 2>/dev/null || true`, { stdio: 'ignore' });
             // Give it a moment to shut down gracefully
             setTimeout(() => {
@@ -28,7 +29,7 @@ function killViteDevServer(): void {
                 } catch {
                     // Process already dead
                 }
-            }, 500);
+            }, 1000); // Increased timeout
         }
     } catch {
         // Process may already be dead
@@ -50,6 +51,32 @@ function handleSignal(): void {
     app.quit();
 }
 
+// Prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', () => {
+        // Someone tried to run a second instance, focus our window instead
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+
+    // On macOS, restore or focus window when app is activated
+    app.on('activate', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) {
+                mainWindow.restore();
+            }
+            mainWindow.focus();
+        }
+        // Note: If window was closed, user can use Cmd+N or we can add window recreation logic here
+    });
+}
+
 // Initialize everything when app is ready
 app.on("ready", () => {
     Menu.setApplicationMenu(null);
@@ -57,8 +84,13 @@ app.on("ready", () => {
     app.on("before-quit", cleanup);
     app.on("will-quit", cleanup);
     app.on("window-all-closed", () => {
-        cleanup();
-        app.quit();
+        // On macOS, keep the app running even when all windows are closed
+        // This matches the standard macOS behavior
+        if (process.platform !== 'darwin') {
+            cleanup();
+            app.quit();
+        }
+        // On macOS, don't quit - user can reopen window or use Cmd+Q to quit
     });
 
     process.on("SIGTERM", handleSignal);
@@ -73,15 +105,32 @@ app.on("ready", () => {
         minHeight: 600,
         webPreferences: {
             preload: getPreloadPath(),
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true,
+            sandbox: false
         },
         icon: getIconPath(),
         titleBarStyle: "hiddenInset",
         backgroundColor: "#FAF9F6",
-        trafficLightPosition: { x: 15, y: 18 }
+        trafficLightPosition: { x: 15, y: 18 },
+        show: false  // Don't show until ready to prevent flashing
     });
 
-    if (isDev()) mainWindow.loadURL(`http://localhost:${DEV_PORT}`)
-    else mainWindow.loadFile(getUIPath());
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
+
+    if (isDev()) {
+        mainWindow.loadURL(`http://localhost:${DEV_PORT}`)
+    } else {
+        mainWindow.loadFile(getUIPath());
+    }
+    
+    // Show window when ready to prevent crashes during load
+    mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+    });
 
     globalShortcut.register('CommandOrControl+Q', () => {
         cleanup();
@@ -143,5 +192,10 @@ app.on("ready", () => {
                 error: error instanceof Error ? error.message : String(error) 
             };
         }
+    });
+
+    // Handle open external URL
+    ipcMainHandle("open-external", async (_: any, url: string) => {
+        await shell.openExternal(url);
     });
 })

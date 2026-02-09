@@ -1,27 +1,51 @@
 {
     "appId": "com.devagentforge.agentcowork",
-    "productName": "Agent Cowork",
+    "productName": "QwenCowork",
     "files": [
         "dist-electron",
-        "dist-react"
+        "dist-react",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux",
+        "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
     ],
     "extraResources": [
         "dist-electron/preload.cjs"
     ],
     "asarUnpack": [
-        "node_modules/@qwen-code/sdk/**/*"
+        "node_modules/@qwen-code/sdk/**/*",
+        "node_modules/better-sqlite3/**/*"
     ],
-    "icon": "./claude-color.png",
+    "icon": "./qwen-color.png",
     "mac": {
-        "target": "dmg"
+        "target": "dmg",
+        "artifactName": "${productName}-${arch}.${ext}",
+        "executableName": "QwenCowork",
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
+        ]
     },
     "linux": {
         "target": "AppImage",
-        "category": "Utility"
+        "artifactName": "${productName}-${arch}.${ext}",
+        "category": "Utility",
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-win32"
+        ]
     },
     "win": {
         "target": [
             "portable"
+        ],
+        "artifactName": "${productName}-${arch}.${ext}",
+        "files": [
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-darwin",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/arm64-linux",
+            "!node_modules/@qwen-code/sdk/dist/cli/vendor/ripgrep/x64-linux"
         ]
     }
 }
