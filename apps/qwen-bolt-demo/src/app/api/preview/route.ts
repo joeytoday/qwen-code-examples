@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 
 export const runtime = 'nodejs';
 
-// 查找 HTML 入口文件
+// Find HTML entry file
 async function findHtmlEntry(workspaceDir: string): Promise<string | null> {
   const possibleEntries = [
     'index.html',
@@ -24,7 +24,7 @@ async function findHtmlEntry(workspaceDir: string): Promise<string | null> {
     }
   }
 
-  // 如果没有找到，尝试搜索第一个 HTML 文件
+  // If not found, try searching for the first HTML file
   try {
     const files = await readdir(workspaceDir);
     const htmlFile = files.find(f => f.endsWith('.html'));
@@ -38,12 +38,12 @@ async function findHtmlEntry(workspaceDir: string): Promise<string | null> {
   return null;
 }
 
-// 读取并处理 HTML 文件，注入所有相关资源
+// Read and process HTML file, inject all related resources
 async function buildPreviewHtml(workspaceDir: string, entryFile: string): Promise<string> {
   const htmlPath = join(workspaceDir, entryFile);
   let html = await readFile(htmlPath, 'utf-8');
 
-  // 读取所有 CSS 文件
+  // Read all CSS files
   const cssFiles: string[] = [];
   try {
     const files = await readdir(workspaceDir, { recursive: true });
@@ -62,7 +62,7 @@ async function buildPreviewHtml(workspaceDir: string, entryFile: string): Promis
     // ignore
   }
 
-  // 读取所有 JS 文件
+  // Read all JS files
   const jsFiles: string[] = [];
   try {
     const files = await readdir(workspaceDir, { recursive: true });
@@ -81,7 +81,7 @@ async function buildPreviewHtml(workspaceDir: string, entryFile: string): Promis
     // ignore
   }
 
-  // 注入 CSS
+  // Inject CSS
   if (cssFiles.length > 0) {
     const cssTag = `<style>\n${cssFiles.join('\n\n')}\n</style>`;
     if (html.includes('</head>')) {
@@ -91,7 +91,7 @@ async function buildPreviewHtml(workspaceDir: string, entryFile: string): Promis
     }
   }
 
-  // 注入 JS
+  // Inject JS
   if (jsFiles.length > 0) {
     const jsTag = `<script>\n${jsFiles.join('\n\n')}\n</script>`;
     if (html.includes('</body>')) {
@@ -116,11 +116,11 @@ export async function GET(request: NextRequest) {
 
     const workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
 
-    // 查找 HTML 入口文件
+    // Find HTML entry file
     const entryFile = await findHtmlEntry(workspaceDir);
     
     if (!entryFile) {
-      // 如果没有 HTML 文件，返回一个默认页面
+      // If no HTML file found, return a default page
       const defaultHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 构建预览 HTML
+    // Build preview HTML
     const previewHtml = await buildPreviewHtml(workspaceDir, entryFile);
 
     return new Response(previewHtml, {

@@ -27,25 +27,25 @@ export function convertFilesToTree(files: Record<string, string>): FileSystemTre
   const tree: FileSystemTree = {};
 
   for (const [path, content] of Object.entries(files)) {
-    // 关键修复：清洗所有路径，确保没有绝对路径前缀，也没有开头的 /
-    // 例如：/private/var/.../package.json -> package.json
+    // Key fix: sanitize all paths, ensure no absolute path prefix or leading /
+    // e.g.: /private/var/.../package.json -> package.json
     let cleanPath = path;
     
-    // 如果路径包含 'private/var' 这种系统路径，尝试只保留项目根目录后的部分
-    // 但更安全的做法是依赖之前 API 层的清洗。如果这里还有脏数据，说明是之前状态残留。
-    // 这里我们至少做去头部的 / 处理
+    // If the path contains system paths like 'private/var', try to keep only the part after the project root
+    // A safer approach is to rely on the API layer sanitization. If dirty data remains here, it is from stale state.
+    // At minimum, we strip the leading / here
     if (cleanPath.startsWith('/')) {
       cleanPath = cleanPath.slice(1);
     }
     
-    // 强制移除可能的系统前缀干扰 (针对 Mac 临时目录)
+    // Force remove possible system prefix interference (for Mac temp directories)
     const systemPrefixes = ['private/var', 'var/folders', 'tmp/qwen-bolt'];
     for (const prefix of systemPrefixes) {
        if (cleanPath.startsWith(prefix)) {
-          // 这是一个非常粗暴的启发式修复：找到第一个看起来像项目文件的位置
-          // 更好的做法是后端就不传这种路径
-          // 假设项目根目录下一定有 package.json 或 src，我们可以尝试截断
-          // 但现在先只依赖后端的修复。
+          // This is a very rough heuristic fix: find the first position that looks like a project file
+          // A better approach is for the backend to not pass such paths
+          // Assuming the project root always has package.json or src, we can try to truncate
+          // But for now, we only rely on the backend fix.
           console.warn('[convertFilesToTree] Detected system path leaking:', cleanPath);
        }
     }

@@ -4,10 +4,10 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
 
-// 存储终端会话
+// Store terminal sessions
 const terminals = new Map<string, any>();
 
-// 创建 Socket.IO 服务器实例
+// Create Socket.IO server instance
 let io: SocketIOServer | null = null;
 
 function initSocketIO(server: any) {
@@ -28,7 +28,7 @@ function initSocketIO(server: any) {
       console.log('[Socket.IO] Starting terminal for container:', containerId);
 
       try {
-        // 创建伪终端
+        // Create pseudo terminal
         const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
         const ptyProcess = spawn(shell, [], {
           name: 'xterm-color',
@@ -40,15 +40,15 @@ function initSocketIO(server: any) {
 
         terminals.set(socket.id, ptyProcess);
 
-        // 发送终端就绪事件
+        // Send terminal ready event
         socket.emit('terminal-ready');
 
-        // 监听终端输出
+        // Listen for terminal output
         ptyProcess.onData((data) => {
           socket.emit('output', data);
         });
 
-        // 监听终端退出
+        // Listen for terminal exit
         ptyProcess.onExit(({ exitCode }) => {
           console.log('[Socket.IO] Terminal exited with code:', exitCode);
           terminals.delete(socket.id);
@@ -89,7 +89,7 @@ function initSocketIO(server: any) {
   return io;
 }
 
-// Next.js API 路由处理
+// Next.js API route handler
 export async function GET(request: NextRequest) {
   return new Response('WebSocket endpoint. Use Socket.IO client to connect.', {
     status: 200,

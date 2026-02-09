@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 
 export const runtime = 'nodejs';
 
-// 递归读取目录中的所有文件
+// Recursively read all files in a directory
 async function getAllFiles(dirPath: string, baseDir: string = dirPath): Promise<{ path: string; content: Buffer }[]> {
   const files: { path: string; content: Buffer }[] = [];
   
@@ -16,17 +16,17 @@ async function getAllFiles(dirPath: string, baseDir: string = dirPath): Promise<
     for (const entry of entries) {
       const fullPath = join(dirPath, entry.name);
       
-      // 跳过 node_modules 和隐藏文件
+      // Skip node_modules and hidden files
       if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
         continue;
       }
       
       if (entry.isDirectory()) {
-        // 递归读取子目录
+        // Recursively read subdirectories
         const subFiles = await getAllFiles(fullPath, baseDir);
         files.push(...subFiles);
       } else if (entry.isFile()) {
-        // 读取文件内容
+        // Read file content
         const content = await readFile(fullPath);
         const relativePath = fullPath.substring(baseDir.length + 1);
         files.push({ path: relativePath, content });
@@ -53,10 +53,10 @@ export async function GET(request: NextRequest) {
 
     console.log('[Download API] Creating zip for session:', sessionId);
 
-    // 获取工作区目录
+    // Get workspace directory
     const workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
     
-    // 检查目录是否存在
+    // Check if directory exists
     try {
       await stat(workspaceDir);
     } catch {
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 读取所有文件
+    // Read all files
     const files = await getAllFiles(workspaceDir);
     
     if (files.length === 0) {
@@ -78,14 +78,14 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Download API] Found ${files.length} files to zip`);
 
-    // 创建 ZIP 文件
+    // Create ZIP file
     const zip = new JSZip();
     
     for (const file of files) {
       zip.file(file.path, file.content);
     }
 
-    // 生成 ZIP 文件（使用 blob 类型）
+    // Generate ZIP file (using blob type)
     const zipBlob = await zip.generateAsync({
       type: 'blob',
       compression: 'DEFLATE',
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Download API] Generated zip file, size: ${zipBlob.size} bytes`);
 
-    // 返回 ZIP 文件
+    // Return ZIP file
     return new NextResponse(zipBlob, {
       headers: {
         'Content-Type': 'application/zip',

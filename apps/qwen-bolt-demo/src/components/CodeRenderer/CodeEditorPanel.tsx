@@ -46,7 +46,7 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
   useEffect(() => {
     if (!editorRef.current) return;
 
-    // 获取语言扩展
+    // Get language extension
     const getLanguageExtension = () => {
       const lang = getLanguageFromFilename(file);
       switch (lang) {
@@ -144,7 +144,7 @@ export const CodeEditorPanel: React.FC<CodeEditorPanelProps> = ({
     }
   }, [searchQuery]);
 
-  // 更新代码内容
+  // Update code content
   useEffect(() => {
     const currentDoc = viewRef.current?.state.doc.toString();
     console.log(`[CodeEditorPanel] Effect[code]. File: ${file}, PropCodeLen: ${code?.length}, CurrentDocLen: ${currentDoc?.length}, NeedsUpdate: ${viewRef.current && code !== currentDoc}`);

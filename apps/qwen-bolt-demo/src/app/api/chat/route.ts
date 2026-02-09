@@ -10,10 +10,10 @@ import { getSystemInstructions, buildUserMessage } from '@/lib/prompt-builder';
 
 export const runtime = 'nodejs';
 
-// 存储会话的工作目录
+// Store session workspace directories
 const sessionWorkspaces = new Map<string, string>();
 
-// 🔥 关键修复：创建一个持续的生成器，而不是单次的
+// Key fix: create a persistent generator instead of a one-shot one
 async function* createPromptStream(
   sessionId: string,
   systemInstructions: string,
@@ -35,13 +35,13 @@ async function* createPromptStream(
     parent_tool_use_id: null,
   } as SDKUserMessage;
   
-  // 🔥 关键：保持生成器活跃，等待可能的工具调用响应
-  // 这样 SDK 就可以在流还活着的时候完成工具调用
-  // 生成器会在 SDK 完成所有处理后自然结束
-  await new Promise(() => {}); // 永远等待，直到 SDK 关闭
+  // Key: keep the generator alive, waiting for possible tool call responses
+  // This allows the SDK to complete tool calls while the stream is still alive
+  // The generator will naturally end after the SDK finishes all processing
+  await new Promise(() => {}); // Wait forever until the SDK closes
 }
 
-// 创建会话工作目录
+// Create session workspace directory
 async function createSessionWorkspace(sessionId: string): Promise<string> {
   let workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
   await mkdir(workspaceDir, { recursive: true });
@@ -59,7 +59,7 @@ async function createSessionWorkspace(sessionId: string): Promise<string> {
   return workspaceDir;
 }
 
-// 获取会话工作目录（内部使用）
+// Get session workspace directory (internal use)
 function getSessionWorkspace(sessionId: string): string | undefined {
   return sessionWorkspaces.get(sessionId);
 }
@@ -163,7 +163,7 @@ function createFileSystemServer(workspaceDir: string, streamController?: Readabl
   });
 }
 
-// 处理上传的文件，将其写入工作目录
+// Process uploaded files and write them to the workspace directory
 async function writeUploadedFiles(workspaceDir: string, uploadedFiles: any[]) {
   if (!uploadedFiles || !Array.isArray(uploadedFiles) || uploadedFiles.length === 0) return '';
 
@@ -180,7 +180,7 @@ async function writeUploadedFiles(workspaceDir: string, uploadedFiles: any[]) {
     }
   }
 
-  // 准备上传文件的上下文
+  // Prepare uploaded files context
   const fileList = uploadedFiles.map(file => `- ${file.path}`).join('\n');
   const fileContents = uploadedFiles.map(file => 
     `\`\`\`${file.path}\n${file.content}\n\`\`\``
@@ -197,7 +197,7 @@ You can reference, read, or modify these files as needed.
 </CONTEXT_FILES>`;
 }
 
-// 设置文件监听器
+// Set up file watcher
 function setupFileWatcher(workspaceDir: string, controller: ReadableStreamDefaultController) {
   let fsWait: NodeJS.Timeout | null = null;
   try {
@@ -253,19 +253,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 创建会话工作目录
+    // Create session workspace directory
     const workspaceDir = await createSessionWorkspace(sessionId);
     
-    // 写入上传文件并获取上下文
+    // Write uploaded files and get context
     const filesContext = await writeUploadedFiles(workspaceDir, uploadedFiles);
 
     const encoder = new TextEncoder();
     
-    // 构建系统指令和用户消息
+    // Build system instructions and user message
     const systemInstructions = getSystemInstructions(knowledge);
     const userMessage = buildUserMessage(message, filesContext);
 
-    // 构建查询选项
+    // Build query options
     const frontendAuthType = modelConfig?.authType || 'qwen-oauth';
     const sdkAuthType = frontendAuthType === 'openai-api-key' ? 'openai' : 'qwen-oauth';
     

@@ -57,7 +57,7 @@ export function buildFileTree(paths: string[]): FileNode[] {
   const root: FileNode[] = [];
   const pathMap = new Map<string, FileNode>();
 
-  // 排序文件路径
+  // Sort file paths
   const sortedPaths = [...paths].sort();
 
   for (const path of sortedPaths) {

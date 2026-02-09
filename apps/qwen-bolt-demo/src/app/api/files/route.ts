@@ -13,14 +13,14 @@ interface FileNode {
   children?: FileNode[];
 }
 
-// 递归构建文件树
+// Recursively build file tree
 async function buildFileTree(dirPath: string, relativePath: string = ''): Promise<FileNode[]> {
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
     const nodes: FileNode[] = [];
 
     for (const entry of entries) {
-      // 忽略隐藏文件和 node_modules
+      // Ignore hidden files and node_modules
       if (entry.name.startsWith('.') || entry.name === 'node_modules') {
         continue;
       }
@@ -45,7 +45,7 @@ async function buildFileTree(dirPath: string, relativePath: string = ''): Promis
       }
     }
 
-    // 排序：目录在前，文件在后
+    // Sort: directories first, files second
     return nodes.sort((a, b) => {
       if (a.type !== b.type) {
         return a.type === 'directory' ? -1 : 1;
@@ -58,8 +58,8 @@ async function buildFileTree(dirPath: string, relativePath: string = ''): Promis
   }
 }
 
-// GET /api/files?sessionId=xxx - 获取文件树
-// GET /api/files?sessionId=xxx&path=xxx - 获取文件内容
+// GET /api/files?sessionId=xxx - Get file tree
+// GET /api/files?sessionId=xxx&path=xxx - Get file content
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -91,9 +91,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 如果指定了文件路径，返回文件内容
+    // If a file path is specified, return file content
     if (filePath) {
-      // 安全检查：防止路径遍历攻击
+      // Security check: prevent path traversal attacks
       if (filePath.includes('..')) {
          return NextResponse.json(
           { error: 'Invalid file path' },
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      // 去除可能的前导斜杠
+      // Remove possible leading slashes
       const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
       const fullPath = join(workspaceDir, cleanPath);
       
@@ -118,8 +118,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 否则返回文件树
-    // 我们总是从 workspaceDir 开始构建，relativePath 初始为空
+    // Otherwise return file tree
+    // We always build from workspaceDir, relativePath starts empty
     const tree = await buildFileTree(workspaceDir, '');
     
     return NextResponse.json({ success: true, tree });
