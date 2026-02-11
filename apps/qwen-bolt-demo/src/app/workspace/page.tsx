@@ -182,6 +182,7 @@ function WorkspaceContent() {
           messages={messages}
           currentResponse={currentResponse}
           messagesEndRef={messagesEndRef}
+          isLoading={isLoading}
         />
         
         <ChatInput

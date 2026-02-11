@@ -91,9 +91,10 @@ function AttachedFilesDisplay({
 
 export default function Home() {
   const { t } = useTranslation();
-  const { addFiles, clearAllFiles } = useProject();
+  const { addFiles, clearAllFiles, isLoaded } = useProject();
   const [input, setInput] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState<string | null>(null);
   const router = useRouter();
 
   // Handle build button click
@@ -250,30 +251,39 @@ export default function Home() {
           {/* Quick Start Templates */}
           <div className="flex flex-wrap items-center justify-center gap-3 mt-8 opacity-80">
             <button 
+              disabled={!isLoaded || !!isLoadingTemplate}
               onClick={() => {
+                setIsLoadingTemplate('react');
                 const prompt = "Create a React project using Vite. The home page should display 'Hello', and the About page should display an introduction to Qwen Code.";
                 router.push(`/workspace?prompt=${encodeURIComponent(prompt)}`);
               }}
-              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm"
+              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
+              {isLoadingTemplate === 'react' && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />}
               {t('home.template.react')}
             </button>
             <button 
+               disabled={!isLoaded || !!isLoadingTemplate}
                onClick={() => {
+                setIsLoadingTemplate('html');
                 const prompt = "Create a simple HTML page with a centered 'Hello World' heading and a gradient background.";
                 router.push(`/workspace?prompt=${encodeURIComponent(prompt)}`);
               }}
-              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm"
+              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
+              {isLoadingTemplate === 'html' && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />}
               {t('home.template.html')}
             </button>
              <button 
+               disabled={!isLoaded || !!isLoadingTemplate}
                onClick={() => {
+                setIsLoadingTemplate('counter');
                 const prompt = "Create a simple Counter app using React and Tailwind CSS. It should have increment, decrement, and reset buttons.";
                 router.push(`/workspace?prompt=${encodeURIComponent(prompt)}`);
               }}
-              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm"
+              className="px-4 py-2 text-sm bg-gray-100/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full transition-all text-gray-600 dark:text-gray-300 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
+              {isLoadingTemplate === 'counter' && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />}
               {t('home.template.counter')}
             </button>
           </div>

@@ -29,6 +29,7 @@ interface MessageListProps {
   messages: Message[];
   currentResponse: string;
   messagesEndRef: RefObject<HTMLDivElement | null>;
+  isLoading: boolean;
 }
 
 function UserMessage({ message }: { message: Message }) {
@@ -105,6 +106,16 @@ function StreamingResponse({ content }: { content: string }) {
   const isPlan = containsPlan(content);
   const isSummary = !isPlan && containsSummary(content);
 
+  if (!content) {
+    return (
+      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+      </div>
+    );
+  }
+
   if (isPlan) {
     return (
       <div className="max-w-[85%]">
@@ -140,7 +151,7 @@ function StreamingResponse({ content }: { content: string }) {
   );
 }
 
-export function MessageList({ messages, currentResponse, messagesEndRef }: MessageListProps) {
+export function MessageList({ messages, currentResponse, messagesEndRef, isLoading }: MessageListProps) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white dark:bg-black">
       {messages.map((msg) => {
@@ -169,7 +180,7 @@ export function MessageList({ messages, currentResponse, messagesEndRef }: Messa
         );
       })}
 
-      {currentResponse && (
+      {(currentResponse || isLoading) && (
         <div className="flex justify-start">
           <StreamingResponse content={currentResponse} />
         </div>
