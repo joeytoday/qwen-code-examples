@@ -164,7 +164,7 @@ export const MultiFileCodeRenderer: React.FC<
         {/* Header */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-800 px-4 py-2">
           <div className="flex items-center gap-2">
-            <Tooltip content={sidebarOpen ? 'Collapse file tree' : 'Expand file tree'}>
+            <Tooltip content={sidebarOpen ? 'Collapse file tree' : 'Expand file tree'} side="bottom">
               <button
                 className="p-1 hover:bg-gray-300 dark:hover:bg-gray-700 rounded transition-colors"
                 onClick={() => setSidebarOpen((v) => !v)}
@@ -180,7 +180,7 @@ export const MultiFileCodeRenderer: React.FC<
           </div>
 
           <div className="flex items-center gap-2">
-            <Tooltip content={copied ? "Copied" : "Copy code"}>
+            <Tooltip content={copied ? "Copied" : "Copy code"} side="bottom">
               <button
                 onClick={handleCopy}
                 className="p-1 hover:bg-gray-300 dark:hover:bg-gray-700 rounded transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

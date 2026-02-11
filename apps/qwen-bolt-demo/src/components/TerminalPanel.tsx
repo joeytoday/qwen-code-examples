@@ -90,29 +90,33 @@ export function TerminalPanel({ devServerLogs = [], sessionId, isOpen = true, on
 
           {/* Terminal tabs */}
           {terminals.map((terminal) => (
-            <button
-              key={terminal.id}
-              onClick={() => setActiveTab(terminal.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors group relative pr-7 ${
-                activeTab === terminal.id
-                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
-              }`}
-            >
-              <TerminalIcon className="w-3 h-3" />
-              <span>{terminal.name}</span>
-              <Tooltip content="Close Terminal">
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeTerminal(terminal.id);
-                  }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-all"
-                >
-                  <X className="w-3 h-3" />
-                </span>
-              </Tooltip>
-            </button>
+            <div key={terminal.id} className="relative group">
+              <button
+                onClick={() => setActiveTab(terminal.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 pl-3 pr-7 py-1.5 rounded-t-lg text-xs font-medium transition-colors ${
+                  activeTab === terminal.id
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                }`}
+              >
+                <TerminalIcon className="w-3 h-3" />
+                <span>{terminal.name}</span>
+              </button>
+              
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <Tooltip content="Close Terminal" side="bottom">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTerminal(terminal.id);
+                    }}
+                    className="p-0.5 hover:bg-red-500 hover:text-white rounded-full transition-colors text-gray-400"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
           ))}
 
           {/* Add terminal button */}
@@ -133,10 +137,10 @@ export function TerminalPanel({ devServerLogs = [], sessionId, isOpen = true, on
 
         {/* Hide/Show button */}
         {onToggle && (
-          <Tooltip content={isOpen ? "Hide Terminal" : "Show Terminal"}>
+          <Tooltip content={isOpen ? "Hide Terminal" : "Show Terminal"} side="left">
             <button
               onClick={onToggle}
-              className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 px-2 transition-colors"
+              className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 px-2 transition-colors ml-auto"
             >
               {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </button>

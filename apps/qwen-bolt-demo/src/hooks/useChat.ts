@@ -30,6 +30,14 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
   const { addTokenUsage } = useToken();
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const stop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, []);
+
   // Load chat history from IndexedDB when sessionId changes
   useEffect(() => {
     async function loadHistory() {
@@ -121,6 +129,8 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
 
     abortControllerRef.current = new AbortController();
 
+    let accumulatedResponse = '';
+
     try {
       const allUploadedFiles = [
         ...currentSettings.uploadedFiles,
@@ -153,7 +163,6 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let accumulatedResponse = '';
         let hasReceivedResult = false;
         let currentSessionId = sessionId;
         let buffer = '';
@@ -251,8 +260,15 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
 
           if (hasReceivedResult) break;
         }
-
-        if (accumulatedResponse) {
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+         console.log('Request aborted by user');
+      } else if (error instanceof Error) {
+        console.error('Error sending message:', error);
+      }
+    } finally {
+      if (accumulatedResponse) {
           const assistantMessage: Message = {
             id: `assistant_${Date.now()}`,
             role: 'assistant',
@@ -260,13 +276,7 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, assistantMessage]);
-        }
       }
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error sending message:', error);
-      }
-    } finally {
       setIsLoading(false);
       setCurrentResponse('');
     }
@@ -282,6 +292,7 @@ export function useChat({ settings: propsSettings, sessionId, setSessionId, load
     attachedFiles,
     setAttachedFiles,
     sendMessage,
-    abortControllerRef
+    abortControllerRef,
+    stop
   };
 }

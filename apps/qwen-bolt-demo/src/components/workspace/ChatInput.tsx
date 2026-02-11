@@ -1,7 +1,7 @@
 'use client';
 
 import { KeyboardEvent, useEffect, useRef } from 'react';
-import { Send, X, File, Folder } from 'lucide-react';
+import { Send, X, File, Folder, Square } from 'lucide-react';
 import { FileAttachment } from '@/components/FileAttachment';
 import { TokenDisplay } from '@/components/TokenDisplay';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -24,6 +24,7 @@ interface ChatInputProps {
   attachedFiles: AttachedFile[];
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onStop: () => void;
   onFilesAttached: (files: AttachedFile[]) => void;
   onFileRemoved: (fileId: string) => void;
   onFolderRemoved: (folderName: string) => void;
@@ -112,6 +113,7 @@ export function ChatInput({
   attachedFiles,
   onInputChange,
   onSend,
+  onStop,
   onFilesAttached,
   onFileRemoved,
   onFolderRemoved,
@@ -122,6 +124,7 @@ export function ChatInput({
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (isLoading) return; // Prevent send if loading
       onSend();
     }
   };
@@ -163,13 +166,21 @@ export function ChatInput({
           rows={4}
           style={{ minHeight: '110px' }}
         />
-        <Tooltip content={t('chat.send')} side="top">
+        <Tooltip content={isLoading ? t('chat.stop') : t('chat.send')} side="top">
           <button
-            onClick={onSend}
-            disabled={isLoading || !input.trim()}
-            className="absolute right-3 bottom-3 p-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed rounded-full transition-all flex items-center justify-center shadow-sm"
+            onClick={isLoading ? onStop : onSend}
+            disabled={!isLoading && !input.trim()}
+            className={`absolute right-3 bottom-3 p-2.5 rounded-full transition-all flex items-center justify-center shadow-sm ${
+              isLoading 
+                ? 'bg-red-500 hover:bg-red-600' 
+                : 'bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed'
+            }`}
           >
-            <Send className="w-4 h-4 text-white" />
+            {isLoading ? (
+              <Square className="w-4 h-4 text-white fill-white" />
+            ) : (
+              <Send className="w-4 h-4 text-white" />
+            )}
           </button>
         </Tooltip>
       </div>

@@ -180,7 +180,7 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({
       <div className="px-3 py-2 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
         <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">FILES</h3>
         <div className="flex items-center gap-1">
-          <Tooltip content="Search Files">
+          <Tooltip content="Search Files" side="bottom">
             <button
               onClick={() => {
                 setIsSearchOpen(!isSearchOpen);
@@ -209,7 +209,7 @@ export const FileTree: React.FC<FileTreeProps & { sessionId?: string }> = ({
               autoFocus
             />
             {searchQuery && (
-              <Tooltip content="Clear search">
+              <Tooltip content="Clear search" side="bottom">
                 <button
                   onClick={() => setSearchQuery('')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-700 rounded"

@@ -53,7 +53,8 @@ function WorkspaceContent() {
     currentResponse,
     attachedFiles,
     setAttachedFiles,
-    sendMessage
+    sendMessage,
+    stop
   } = useChat({
     settings,
     sessionId,
@@ -189,6 +190,7 @@ function WorkspaceContent() {
           attachedFiles={attachedFiles}
           onInputChange={setInput}
           onSend={() => sendMessage()}
+          onStop={stop}
           onFilesAttached={(newFiles) => {
             setAttachedFiles(prev => [...prev, ...newFiles]);
             // Also update the workspace files so they are visible in the code panel
