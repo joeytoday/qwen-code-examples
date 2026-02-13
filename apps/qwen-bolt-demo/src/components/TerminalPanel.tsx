@@ -34,6 +34,9 @@ export function TerminalPanel({
   ]);
   const [activeTabId, setActiveTabId] = useState('terminal-0');
   const outputRef = useRef<HTMLDivElement>(null);
+  // Track which terminal tabs have been activated (mounted) at least once
+  // Default terminal is always mounted
+  const mountedTabsRef = useRef<Set<string>>(new Set(['terminal-0']));
 
   // Auto-scroll output
   useEffect(() => {
@@ -134,20 +137,30 @@ export function TerminalPanel({
 
       {/* Content */}
       <div className="flex-1 relative min-h-0 overflow-hidden">
-        {/* Terminal Tabs - Always kept mounted for process persistence */}
-        {tabs.filter(t => t.type === 'terminal').map(tab => (
-          <div 
-            key={tab.id}
-            className={`absolute inset-0 w-full h-full ${isDark ? 'bg-[#1a1b26]' : 'bg-white'}`}
-            style={{ 
-              visibility: activeTabId === tab.id ? 'visible' : 'hidden',
-              zIndex: activeTabId === tab.id ? 10 : 0,
-              display: activeTabId === tab.id ? 'block' : 'none'
-            }}
-          >
-            <Terminal />
-          </div>
-        ))}
+        {/* Terminal Tabs - Lazy mount: only render after first activation */}
+        {tabs.filter(t => t.type === 'terminal').map(tab => {
+          const isActive = activeTabId === tab.id;
+          // Track which tabs have been activated (mounted) at least once
+          if (isActive && !mountedTabsRef.current.has(tab.id)) {
+            mountedTabsRef.current.add(tab.id);
+          }
+          const isMounted = mountedTabsRef.current.has(tab.id);
+          if (!isMounted) return null;
+
+          return (
+            <div 
+              key={tab.id}
+              className={`absolute inset-0 w-full h-full ${isDark ? 'bg-[#1a1b26]' : 'bg-white'}`}
+              style={{ 
+                visibility: isActive ? 'visible' : 'hidden',
+                zIndex: isActive ? 10 : 0,
+                display: isActive ? 'block' : 'none'
+              }}
+            >
+              <Terminal isPrimary={tab.id === 'terminal-0'} />
+            </div>
+          );
+        })}
 
         {/* Output Tab */}
         <div 

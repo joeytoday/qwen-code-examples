@@ -10,6 +10,8 @@ import '@xterm/xterm/css/xterm.css';
 interface TerminalProps {
   className?: string;
   readonly?: boolean;
+  /** Only the primary terminal listens for bolt:run-command and emits bolt:shell-ready */
+  isPrimary?: boolean;
 }
 
 const SHELL_PROMPT_CHARS = ['$', '>'];
@@ -64,7 +66,7 @@ function getTerminalTheme(theme: string | undefined) {
   return theme === 'light' ? LIGHT_THEME : DARK_THEME;
 }
 
-const Terminal = memo(({ className = '', readonly = false }: TerminalProps) => {
+const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: TerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -174,8 +176,8 @@ const Terminal = memo(({ className = '', readonly = false }: TerminalProps) => {
             write(data: string) {
               term.write(data);
               
-              // Detect shell prompt: jsh shows prompt chars when ready
-              if (!shellReady && SHELL_PROMPT_CHARS.some(ch => data.includes(ch))) {
+              // Only the primary terminal emits shell-ready for auto-start
+              if (isPrimary && !shellReady && SHELL_PROMPT_CHARS.some(ch => data.includes(ch))) {
                 shellReady = true;
                 console.log('[Terminal] Shell is ready, dispatching shell-ready event');
                 window.dispatchEvent(new CustomEvent('bolt:shell-ready'));
@@ -190,19 +192,24 @@ const Terminal = memo(({ className = '', readonly = false }: TerminalProps) => {
           input.write(data);
         });
 
-        // External commands listener
-        const handleCommand = async (e: CustomEvent) => {
-          const { command } = e.detail;
-          if (command) {
-            input.write(command + '\r');
-          }
-        };
-        window.addEventListener('bolt:run-command', handleCommand as unknown as EventListener);
+        // Only the primary terminal listens for external commands (auto-start)
+        let handleCommand: ((e: CustomEvent) => void) | null = null;
+        if (isPrimary) {
+          handleCommand = async (e: CustomEvent) => {
+            const { command } = e.detail;
+            if (command) {
+              input.write(command + '\r');
+            }
+          };
+          window.addEventListener('bolt:run-command', handleCommand as unknown as EventListener);
+        }
 
         await shellProcess.exit;
         
         disposable.dispose();
-        window.removeEventListener('bolt:run-command', handleCommand as unknown as EventListener);
+        if (handleCommand) {
+          window.removeEventListener('bolt:run-command', handleCommand as unknown as EventListener);
+        }
         
       } catch (error) {
         console.error('Terminal shell error:', error);
