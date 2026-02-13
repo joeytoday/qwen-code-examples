@@ -155,33 +155,9 @@ function WorkspaceContent() {
     }
   }, [initialPrompt, messages.length, sendMessage, isLoaded, settings, setAttachedFiles, clearAllFiles]);
 
-  // 5. Auto-Start logic: triggers on both new generation completion and history file restore
-  const previousIsLoadingRef = useRef(isLoading);
-  const hasStartedServerRef = useRef(false);
-  const previousFilesCountRef = useRef(0);
-
-  useEffect(() => {
-    const currentFilesCount = Object.keys(files).length;
-
-    // Trigger 1: isLoading went from true -> false (new generation finished)
-    if (previousIsLoadingRef.current && !isLoading) {
-      if (currentFilesCount > 0 && !hasStartedServerRef.current) {
-        console.log('[Workspace] Auto-starting dev server after generation...');
-        startDevServer();
-        hasStartedServerRef.current = true;
-      }
-    }
-
-    // Trigger 2: files went from 0 -> non-zero while NOT loading (history restore)
-    if (previousFilesCountRef.current === 0 && currentFilesCount > 0 && !isLoading && !hasStartedServerRef.current) {
-      console.log('[Workspace] Auto-starting dev server after history restore...');
-      startDevServer();
-      hasStartedServerRef.current = true;
-    }
-
-    previousIsLoadingRef.current = isLoading;
-    previousFilesCountRef.current = currentFilesCount;
-  }, [isLoading, files, startDevServer]);
+  // 5. Auto-Start is now handled inside useDevServer hook
+  // It watches for: webcontainer ready + files available + not loading
+  // This covers both new generation (isLoading: true->false) and history restore
 
   // Handle open in new tab
   const handleOpenInNewTab = () => {

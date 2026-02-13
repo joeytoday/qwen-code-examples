@@ -96,6 +96,8 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
     webcontainer.on('server-ready', handleServerReady);
   }, [webcontainer]);
 
+  const hasAutoStartedRef = useRef(false);
+
   const startDevServer = useCallback(async () => {
     if (!webcontainer || isStartingServer) return;
 
@@ -162,6 +164,27 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
       setIsStartingServer(false);
     }
   }, [webcontainer, isStartingServer, files]);
+
+  // Auto-start: when WebContainer is ready AND files with package.json are available
+  // This covers both new generation (files arrive after AI finishes) and history restore
+  useEffect(() => {
+    if (hasAutoStartedRef.current) return;
+    if (!webcontainer || isWebContainerLoading) return;
+    if (Object.keys(files).length === 0) return;
+    if (isStartingServer) return;
+
+    // Find package.json to confirm this is a runnable project
+    const hasPackageJson = Object.keys(files).some(f => {
+      const cleanPath = f.startsWith('/') ? f.substring(1) : f;
+      return cleanPath.endsWith('package.json');
+    });
+
+    if (!hasPackageJson) return;
+
+    console.log('[DevServer] Auto-start: WebContainer ready + files available, starting dev server...');
+    hasAutoStartedRef.current = true;
+    startDevServer();
+  }, [webcontainer, isWebContainerLoading, files, isStartingServer, startDevServer]);
 
   const stopDevServer = useCallback(() => {
     if (webcontainer) {
