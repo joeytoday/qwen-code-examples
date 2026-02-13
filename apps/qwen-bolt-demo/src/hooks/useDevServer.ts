@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { DevServer } from '@/components/workspace';
 import { useWebContainer } from './useWebContainer';
-import { findProjectRoot } from '@/lib/file-utils';
+import { convertFilesToTree, findProjectRoot } from '@/lib/file-utils';
 
 // .npmrc content for faster npm install using China mirror
 const NPMRC_CONTENT = `registry=https://registry.npmmirror.com
@@ -18,31 +18,60 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
   const [devServerLogs, setDevServerLogs] = useState<string[]>([]);
   
   const { webcontainer, isLoading: isWebContainerLoading, error: webContainerError } = useWebContainer();
+  const isFileSystemMountedRef = useRef(false);
   const npmrcWrittenRef = useRef(false);
 
-  // Write .npmrc to WebContainer for faster npm install
+  // Mount/sync files to WebContainer FS when files change
   useEffect(() => {
-    async function writeNpmrc() {
+    async function mountFiles() {
+      if (!webcontainer || Object.keys(files).length === 0) return;
+
+      if (!isFileSystemMountedRef.current) {
+        try {
+          console.log('[DevServer] Mounting files to WebContainer FS:', Object.keys(files).length);
+          const tree = convertFilesToTree(files);
+          await webcontainer.mount(tree);
+          isFileSystemMountedRef.current = true;
+          setDevServerLogs(prev => [...prev, '[System] File system mounted.']);
+        } catch (error) {
+          console.error('[DevServer] Failed to mount files:', error);
+        }
+      }
+    }
+
+    mountFiles();
+  }, [webcontainer, files]);
+
+  // Reset mount flag when WebContainer changes
+  useEffect(() => {
+    if (!webcontainer) {
+      isFileSystemMountedRef.current = false;
+      npmrcWrittenRef.current = false;
+    }
+  }, [webcontainer]);
+
+  // Write .npmrc and .env to WebContainer for faster npm install and proper host binding
+  useEffect(() => {
+    async function writeConfigFiles() {
       if (!webcontainer || npmrcWrittenRef.current) return;
       
       try {
+        // Write .npmrc for faster installs
         await webcontainer.fs.writeFile('.npmrc', NPMRC_CONTENT);
+        
+        // Write .env with HOST=0.0.0.0 so frameworks (Vite, Next.js, etc.) bind correctly
+        // This ensures preview works regardless of how the user starts the dev server
+        await webcontainer.fs.writeFile('.env', 'HOST=0.0.0.0\n');
+        
         npmrcWrittenRef.current = true;
-        console.log('[DevServer] .npmrc written to WebContainer for faster installs');
-        setDevServerLogs(prev => [...prev, '[System] npm mirror configured for faster installs.']);
+        console.log('[DevServer] .npmrc and .env written to WebContainer');
+        setDevServerLogs(prev => [...prev, '[System] npm mirror and host binding configured.']);
       } catch (error) {
-        console.warn('[DevServer] Failed to write .npmrc:', error);
+        console.warn('[DevServer] Failed to write config files:', error);
       }
     }
     
-    writeNpmrc();
-  }, [webcontainer]);
-
-  // Reset npmrc flag when WebContainer changes
-  useEffect(() => {
-    if (!webcontainer) {
-      npmrcWrittenRef.current = false;
-    }
+    writeConfigFiles();
   }, [webcontainer]);
 
   // Listen for server-ready events from WebContainer
@@ -95,8 +124,10 @@ export function useDevServer(sessionId: string, files: Record<string, string>) {
           }
 
           // Dispatch install + dev command to the terminal shell
+          // HOST=0.0.0.0 is already configured via .env file written at boot time,
+          // so the user can also manually run these commands and preview will still work
           setTimeout(() => {
-            const command = `export HOST=0.0.0.0 && ${cdCommand}npm install && ${devScript} -- --host 0.0.0.0`;
+            const command = `${cdCommand}npm install && ${devScript}`;
             console.log('[DevServer] Dispatching command:', command);
             window.dispatchEvent(new CustomEvent('bolt:run-command', { 
                 detail: { command } 
