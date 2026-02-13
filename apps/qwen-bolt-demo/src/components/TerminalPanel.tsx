@@ -25,8 +25,16 @@ export function TerminalPanel({
   isOpen = true, 
   onToggle,
 }: TerminalPanelProps) {
-  const { theme } = useTheme();
-  const isDark = theme !== 'light';
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use resolvedTheme for accurate theme detection after mount
+  // Before mount, default to dark to avoid hydration mismatch
+  const isDark = mounted ? resolvedTheme !== 'light' : true;
 
   const [tabs, setTabs] = useState<TerminalTab[]>([
     { id: 'terminal-0', label: 'Terminal', type: 'terminal' },
@@ -52,7 +60,14 @@ export function TerminalPanel({
       label: `Terminal ${terminalIdCounter}`,
       type: 'terminal',
     };
-    setTabs(prev => [...prev, newTab]);
+    // Insert before the Output tab (which is always last)
+    setTabs(prev => {
+      const outputIndex = prev.findIndex(t => t.id === 'output');
+      if (outputIndex === -1) return [...prev, newTab];
+      const newTabs = [...prev];
+      newTabs.splice(outputIndex, 0, newTab);
+      return newTabs;
+    });
     setActiveTabId(newId);
   }, []);
 

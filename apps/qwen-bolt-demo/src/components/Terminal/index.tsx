@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, memo, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { useTheme } from 'next-themes';
@@ -71,21 +71,29 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const { webcontainer, isLoading } = useWebContainer();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const shellProcessRef = useRef<any>(null);
   const initializedRef = useRef(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Effective theme: use resolvedTheme after mount, default to dark before mount
+  const effectiveTheme = mounted ? resolvedTheme : 'dark';
+
   // Update terminal theme when page theme changes
   useEffect(() => {
-    if (!terminalRef.current) return;
-    terminalRef.current.options.theme = getTerminalTheme(theme);
-  }, [theme]);
+    if (!terminalRef.current || !mounted) return;
+    terminalRef.current.options.theme = getTerminalTheme(effectiveTheme);
+  }, [effectiveTheme, mounted]);
 
   // Initialize Terminal UI
   useEffect(() => {
     if (!containerRef.current || terminalRef.current) return;
 
-    const terminalTheme = getTerminalTheme(theme);
+    const terminalTheme = getTerminalTheme(effectiveTheme);
 
     // Create terminal instance
     const term = new XTerm({
@@ -222,7 +230,7 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
 
   }, [webcontainer, isLoading]);
 
-  const containerBg = theme === 'light' ? 'bg-white' : 'bg-[#1a1b26]';
+  const containerBg = effectiveTheme === 'light' ? 'bg-white' : 'bg-[#1a1b26]';
 
   return (
     <div 
