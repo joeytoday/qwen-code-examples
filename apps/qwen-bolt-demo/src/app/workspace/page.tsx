@@ -155,6 +155,26 @@ function WorkspaceContent() {
     }
   }, [initialPrompt, messages.length, sendMessage, isLoaded, settings, setAttachedFiles, clearAllFiles]);
 
+  // 5. Auto-Start logic after file generation
+  const previousIsLoadingRef = useRef(isLoading);
+  const hasStartedServerRef = useRef(false);
+
+  useEffect(() => {
+    // Detect trigger: isLoading went from true -> false (generation finished)
+    // AND we have files 
+    // AND server not yet started (or we might want to restart? Let's assume start for now)
+    
+    if (previousIsLoadingRef.current && !isLoading) {
+        // Generation just finished.
+        if (Object.keys(files).length > 0 && !hasStartedServerRef.current) {
+            console.log('[Workspace] Auto-starting dev server...');
+            startDevServer();
+            hasStartedServerRef.current = true;
+        }
+    }
+    previousIsLoadingRef.current = isLoading;
+  }, [isLoading, files, startDevServer]);
+
   // Handle open in new tab
   const handleOpenInNewTab = () => {
     window.open(previewUrl, '_blank');

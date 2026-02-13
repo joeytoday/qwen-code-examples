@@ -27,61 +27,40 @@ export function convertFilesToTree(files: Record<string, string>): FileSystemTre
   const tree: FileSystemTree = {};
 
   for (const [path, content] of Object.entries(files)) {
-    // Key fix: sanitize all paths, ensure no absolute path prefix or leading /
-    // e.g.: /private/var/.../package.json -> package.json
-    let cleanPath = path;
+    // 1. Clean the path (remove leading slash)
+    let cleanPath = path.startsWith('/') ? path.substring(1) : path;
     
-    // If the path contains system paths like 'private/var', try to keep only the part after the project root
-    // A safer approach is to rely on the API layer sanitization. If dirty data remains here, it is from stale state.
-    // At minimum, we strip the leading / here
-    if (cleanPath.startsWith('/')) {
-      cleanPath = cleanPath.slice(1);
-    }
-    
-    // Force remove possible system prefix interference (for Mac temp directories)
-    const systemPrefixes = ['private/var', 'var/folders', 'tmp/qwen-bolt'];
-    for (const prefix of systemPrefixes) {
-       if (cleanPath.startsWith(prefix)) {
-          // This is a very rough heuristic fix: find the first position that looks like a project file
-          // A better approach is for the backend to not pass such paths
-          // Assuming the project root always has package.json or src, we can try to truncate
-          // But for now, we only rely on the backend fix.
-          console.warn('[convertFilesToTree] Detected system path leaking:', cleanPath);
-       }
-    }
-
+    // 2. Split path into segments
     const parts = cleanPath.split('/');
-    let current = tree;
+    let currentLevel = tree;
 
     for (let i = 0; i < parts.length; i++) {
-
       const part = parts[i];
-      if (!part) continue; // Skip empty parts just in case
-
       const isFile = i === parts.length - 1;
 
       if (isFile) {
-        current[part] = {
+        // Create file node
+        currentLevel[part] = {
           file: {
             contents: content,
           },
         };
       } else {
-        if (!current[part]) {
-          current[part] = {
+        // Create directory node if it doesn't exist
+        if (!currentLevel[part]) {
+          currentLevel[part] = {
             directory: {},
           };
         }
         
-        const node = current[part];
+        // Navigate down ONLY if it is a directory
+        const node = currentLevel[part];
         if ('directory' in node) {
-          current = node.directory;
+          currentLevel = node.directory;
         } else {
-             // Conflict: trying to treat a file as a directory
-             // In a realistic scenario, valid file paths shouldn't conflict like this (foo vs foo/bar)
-             // But if so, we simply can't proceed down this branch. Overwriting would be destructive.
-             console.warn(`Path conflict at ${part} for ${path}`);
-             break;
+          // Path conflict: trying to use a file name as a folder name
+          console.warn(`[FileTree] Path conflict at ${part} for ${path}. Skipping.`);
+          break;
         }
       }
     }

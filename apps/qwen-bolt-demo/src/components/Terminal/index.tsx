@@ -3,26 +3,23 @@
 import { useEffect, useRef, memo } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { WebContainer } from '@webcontainer/api';
 import { useWebContainer } from '../../hooks/useWebContainer';
 import '@xterm/xterm/css/xterm.css';
 
 interface TerminalProps {
   className?: string;
   readonly?: boolean;
-  onServerReady?: (port: number) => void;
 }
 
-const Terminal = memo(({ className = '', readonly = false, onServerReady }: TerminalProps) => {
+const Terminal = memo(({ className = '', readonly = false }: TerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const { webcontainer: webContainer, isLoading } = useWebContainer();
-  const isReady = !isLoading && !!webContainer;
+  const { webcontainer, isLoading } = useWebContainer();
   const shellProcessRef = useRef<any>(null);
   const initializedRef = useRef(false);
 
-  // Initialize Terminal
+  // Initialize Terminal UI
   useEffect(() => {
     if (!containerRef.current || terminalRef.current) return;
 
@@ -56,6 +53,8 @@ const Terminal = memo(({ className = '', readonly = false, onServerReady }: Term
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 14,
       lineHeight: 1.2,
+      rows: 24,
+      cols: 80,
     });
 
     const fitAddon = new FitAddon();
@@ -67,40 +66,60 @@ const Terminal = memo(({ className = '', readonly = false, onServerReady }: Term
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
 
+    // Initial greeting
+    term.writeln('\x1b[32mTarget environment ready.\x1b[0m');
+    term.writeln('Waiting for WebContainer...');
+
     // Handle resize
     const resizeObserver = new ResizeObserver(() => {
-      // Small delay to ensure container has settled
+      // Use requestAnimationFrame to debounce and throttle resize
       requestAnimationFrame(() => {
-        fitAddon.fit();
+        if (!fitAddonRef.current || !terminalRef.current) return;
+        
+        try {
+          fitAddonRef.current.fit();
+          
+          // Propagate resize to shell if it exists
+          if (shellProcessRef.current) {
+            const { cols, rows } = terminalRef.current;
+            shellProcessRef.current.resize({ cols, rows });
+          }
+        } catch (e) {
+          console.error('Resize error:', e);
+        }
       });
     });
     
     resizeObserver.observe(containerRef.current);
 
-    // Initial greeting
-    term.writeln('\x1b[32mTarget environment ready.\x1b[0m');
-    term.writeln('Waiting for WebContainer...');
-
     return () => {
       resizeObserver.disconnect();
       term.dispose();
       terminalRef.current = null;
+      fitAddonRef.current = null;
       initializedRef.current = false;
     };
   }, [readonly]);
 
-  // Connect to WebContainer
+  // Connect to WebContainer Shell
   useEffect(() => {
-    if (!isReady || !webContainer || !terminalRef.current || initializedRef.current) return;
+    if (isLoading || !webcontainer || !terminalRef.current || initializedRef.current) return;
 
     const startShell = async () => {
       try {
         initializedRef.current = true;
         const term = terminalRef.current!;
+        const fitAddon = fitAddonRef.current;
         
-        term.writeln('\x1b[34mWebContainer connected. Starting shell...\x1b[0m');
+        if (fitAddon) {
+            fitAddon.fit();
+        }
 
-        const shellProcess = await webContainer.spawn('jsh', {
+        term.writeln('\x1b[34mWebContainer connected. Starting jsh...\x1b[0m');
+
+        // Spawn jsh (bash-like shell)
+        // We do NOT use 'sh' because jsh is optimized for WebContainer
+        const shellProcess = await webcontainer.spawn('jsh', {
           terminal: {
             cols: term.cols,
             rows: term.rows,
@@ -109,43 +128,28 @@ const Terminal = memo(({ className = '', readonly = false, onServerReady }: Term
 
         shellProcessRef.current = shellProcess;
         
+        // Pipe output directly to xterm
         shellProcess.output.pipeTo(
           new WritableStream({
             write(data) {
               term.write(data);
-              // Simple check for server ready (Vite/Next/others)
-              const match = data.match(/Local:\s+http:\/\/localhost:(\d+)/) || 
-                            data.match(/Ready on http:\/\/localhost:(\d+)/) ||
-                            data.match(/http:\/\/localhost:(\d+)/);
-              if (match) {
-                const port = parseInt(match[1], 10);
-                if (!isNaN(port) && onServerReady) {
-                  onServerReady(port);
-                }
-              }
             },
           })
         );
 
+        // Pipe input from xterm to shell
         const input = shellProcess.input.getWriter();
         const disposable = term.onData((data) => {
           input.write(data);
         });
 
-        // Handle terminal resize for shell
-        const handleResize = (evt: { cols: number; rows: number }) => {
-          shellProcess.resize({
-            cols: evt.cols,
-            rows: evt.rows,
-          });
-        };
-        term.onResize(handleResize);
-
-        // Listen for external commands
+        // External commands listener (if needed by other components)
         const handleCommand = async (e: CustomEvent) => {
           const { command } = e.detail;
           if (command) {
-            term.writeln(`\r\n> ${command}`);
+            // Write command to terminal for visual feedback
+            // Note: writing to valid jsh input usually echoes back, 
+            // but for automated commands we might want to simulate typing
             input.write(command + '\r');
           }
         };
@@ -153,7 +157,6 @@ const Terminal = memo(({ className = '', readonly = false, onServerReady }: Term
 
         await shellProcess.exit;
         
-        // Cleanup if process exits
         disposable.dispose();
         window.removeEventListener('bolt:run-command', handleCommand as unknown as EventListener);
         
@@ -166,11 +169,7 @@ const Terminal = memo(({ className = '', readonly = false, onServerReady }: Term
 
     startShell();
 
-    return () => {
-      // No cleanup here to persist shell across tab switches if component unmounts
-      // but in our implementation we use display:none so it shouldn't unmount often
-    };
-  }, [webContainer, isReady]);
+  }, [webcontainer, isLoading]);
 
   return (
     <div 

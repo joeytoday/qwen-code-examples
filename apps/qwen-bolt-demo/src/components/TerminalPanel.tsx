@@ -15,7 +15,8 @@ interface TerminalPanelProps {
 export function TerminalPanel({ 
   devServerLogs = [], 
   isOpen = true, 
-  onToggle 
+  onToggle,
+  onServerDetected
 }: TerminalPanelProps) {
   const [activeTab, setActiveTab] = useState<'terminal' | 'output'>('terminal');
   const outputRef = useRef<HTMLDivElement>(null);
@@ -76,7 +77,7 @@ export function TerminalPanel({
             display: activeTab === 'terminal' ? 'block' : 'none'
           }}
         >
-          <Terminal onServerReady={onServerDetected} />
+          <Terminal />
         </div>
 
         {/* Output Tab */}
