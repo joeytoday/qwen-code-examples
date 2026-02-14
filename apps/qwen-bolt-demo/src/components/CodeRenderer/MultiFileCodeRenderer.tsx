@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MultiFileCodeRendererProps } from './types';
 import { FileTree } from './FileTree';
 import { CodeEditorPanel } from './CodeEditorPanel';
-import { PanelLeft, GripVertical, Copy, Check } from 'lucide-react';
+import { PanelLeft, GripVertical, Copy, Check, Save, RotateCcw } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 
 export const MultiFileCodeRenderer: React.FC<
@@ -14,6 +14,7 @@ export const MultiFileCodeRenderer: React.FC<
   readOnly = true,
   isComplete = true,
   onCodeChange,
+  onSaveFile,
   activeFile: propActiveFile,
   onSelectFile,
   tabBarExtraContent,
@@ -32,6 +33,34 @@ export const MultiFileCodeRenderer: React.FC<
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Track unsaved edits per file: path -> edited content
+  const [unsavedChanges, setUnsavedChanges] = useState<Record<string, string>>({});
+
+  const hasUnsavedChange = activeFile && unsavedChanges[activeFile] !== undefined;
+
+  const handleSave = useCallback(() => {
+    if (!activeFile || unsavedChanges[activeFile] === undefined) return;
+    const editedContent = unsavedChanges[activeFile];
+    if (onSaveFile) {
+      onSaveFile(activeFile, editedContent);
+    }
+    // Remove from unsaved after save
+    setUnsavedChanges(prev => {
+      const next = { ...prev };
+      delete next[activeFile];
+      return next;
+    });
+  }, [activeFile, unsavedChanges, onSaveFile]);
+
+  const handleReset = () => {
+    if (!activeFile || !hasUnsavedChange) return;
+    // Remove unsaved change — CodeEditorPanel will re-sync from files[activeFile]
+    setUnsavedChanges(prev => {
+      const next = { ...prev };
+      delete next[activeFile];
+      return next;
+    });
+  };
 
   const handleCopy = async () => {
     if (!activeFile || !files[activeFile]) return;
@@ -80,12 +109,37 @@ export const MultiFileCodeRenderer: React.FC<
     onSelectFile?.(path);
   };
 
-  // Handle code change with proper typing
+  // Handle code change: track as unsaved instead of immediately saving
   const handleCodeChange = (code: string, filename?: string) => {
-    if (onCodeChange && filename) {
+    if (!filename) return;
+    // Check if content actually differs from the saved version
+    if (code === files[filename]) {
+      // Content matches saved version, remove from unsaved
+      setUnsavedChanges(prev => {
+        const next = { ...prev };
+        delete next[filename];
+        return next;
+      });
+    } else {
+      // Track as unsaved change
+      setUnsavedChanges(prev => ({ ...prev, [filename]: code }));
+    }
+    if (onCodeChange) {
       onCodeChange(code, filename);
     }
   };
+
+  // Keyboard shortcut: Cmd+S / Ctrl+S to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
 
   // Handle drag start
   const handleDragStart = (e: React.MouseEvent) => {
@@ -180,6 +234,28 @@ export const MultiFileCodeRenderer: React.FC<
           </div>
 
           <div className="flex items-center gap-2">
+            {hasUnsavedChange && (
+              <>
+                <Tooltip content="Save changes" side="bottom">
+                  <button
+                    onClick={handleSave}
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save</span>
+                  </button>
+                </Tooltip>
+                <Tooltip content="Discard changes" side="bottom">
+                  <button
+                    onClick={handleReset}
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                </Tooltip>
+              </>
+            )}
             <Tooltip content={copied ? "Copied" : "Copy code"} side="bottom">
               <button
                 onClick={handleCopy}
@@ -196,7 +272,7 @@ export const MultiFileCodeRenderer: React.FC<
         <div className="min-h-0 flex-1">
           <CodeEditorPanel
             file={activeFile}
-            code={files[activeFile] || ''}
+            code={unsavedChanges[activeFile] !== undefined ? unsavedChanges[activeFile] : (files[activeFile] || '')}
             readOnly={readOnly}
             isComplete={isComplete}
             onChange={handleCodeChange}

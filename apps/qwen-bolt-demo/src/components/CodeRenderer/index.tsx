@@ -8,6 +8,7 @@ interface CodeRendererProps {
   files: Record<string, string>;
   readOnly?: boolean;
   onCodeChange?: (code: string, filename?: string) => void;
+  onSaveFile?: (path: string, content: string) => void;
   tabBarExtraContent?: React.ReactNode;
   activeFile?: string;
   onSelectFile?: (path: string) => void;
@@ -19,6 +20,7 @@ const CodeRenderer: React.FC<CodeRendererProps> = ({
   files = {},
   readOnly = true,
   onCodeChange,
+  onSaveFile,
   tabBarExtraContent,
   activeFile,
   onSelectFile,
@@ -38,6 +40,7 @@ const CodeRenderer: React.FC<CodeRendererProps> = ({
         readOnly={readOnly}
         isComplete={isComplete}
         onCodeChange={handleMultiFileContentChange}
+        onSaveFile={onSaveFile}
         tabBarExtraContent={tabBarExtraContent}
         activeFile={activeFile}
         onSelectFile={onSelectFile}

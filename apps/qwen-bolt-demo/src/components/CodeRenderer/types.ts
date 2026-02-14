@@ -3,6 +3,7 @@ export interface MultiFileCodeRendererProps {
   readOnly?: boolean;
   isComplete?: boolean;
   onCodeChange?: (code: string, filename: string) => void;
+  onSaveFile?: (path: string, content: string) => void;
   activeFile?: string;
   onSelectFile?: (path: string) => void;
 }

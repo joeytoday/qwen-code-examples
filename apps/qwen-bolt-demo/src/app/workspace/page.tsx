@@ -233,22 +233,24 @@ function WorkspaceContent() {
 
         {/* Content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Main content area */}
+          {/* Main content area — both panels always mounted, toggled via CSS to avoid iframe reload */}
           <div className="flex-1 flex overflow-hidden min-h-0">
-            {viewMode === 'code' && (
-              <div className="w-full flex overflow-hidden">
-                <CodePanel
-                  files={files}
-                  activeFile={activeFile}
-                  sessionId={sessionId}
-                  isLoading={isLoading}
-                  onSelectFile={setActiveFile}
-                  onCodeChange={(code, filename) => console.log('Code changed:', filename)}
-                />
-              </div>
-            )}
+            <div className={`w-full flex overflow-hidden ${viewMode === 'code' ? '' : 'hidden'}`}>
+              <CodePanel
+                files={files}
+                activeFile={activeFile}
+                sessionId={sessionId}
+                isLoading={isLoading}
+                onSelectFile={setActiveFile}
+                onCodeChange={(code, filename) => console.log('Code changed:', filename)}
+                onSaveFile={(path, content) => {
+                  console.log('[Workspace] Saving file:', path);
+                  updateFile(path, content);
+                }}
+              />
+            </div>
 
-            {viewMode === 'preview' && (
+            <div className={`w-full flex flex-col ${viewMode === 'preview' ? '' : 'hidden'}`}>
               <PreviewPanel
                 previewUrl={previewUrl}
                 devServer={devServer}
@@ -257,7 +259,7 @@ function WorkspaceContent() {
                 hasFiles={Object.keys(files).length > 0}
                 onOpenInNewTab={handleOpenInNewTab}
               />
-            )}
+            </div>
           </div>
 
           {/* Terminal Panel with Resizable Handle */}

@@ -10,6 +10,7 @@ interface CodePanelProps {
   isLoading: boolean;
   onSelectFile: (path: string) => void;
   onCodeChange: (code: string, filename?: string) => void;
+  onSaveFile?: (path: string, content: string) => void;
 }
 
 export function CodePanel({
@@ -19,6 +20,7 @@ export function CodePanel({
   isLoading,
   onSelectFile,
   onCodeChange,
+  onSaveFile,
 }: CodePanelProps) {
   if (Object.keys(files).length === 0) {
     return (
@@ -35,9 +37,10 @@ export function CodePanel({
   return (
     <CodeRenderer
       files={files}
-      readOnly={true}
+      readOnly={false}
       isComplete={!isLoading}
       onCodeChange={onCodeChange}
+      onSaveFile={onSaveFile}
       activeFile={activeFile}
       onSelectFile={onSelectFile}
       sessionId={sessionId}
