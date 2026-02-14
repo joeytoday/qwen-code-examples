@@ -1,7 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { DevServer } from '@/components/workspace';
 import { useWebContainer } from './useWebContainer';
 import { convertFilesToTree, findProjectRoot } from '@/lib/file-utils';
+
+export type ProjectType = 'node' | 'static-html' | 'empty';
 
 // .npmrc content for faster npm install using China mirror
 const NPMRC_CONTENT = `registry=https://registry.npmmirror.com
@@ -20,6 +22,130 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
   const { webcontainer, isLoading: isWebContainerLoading, error: webContainerError } = useWebContainer();
   const npmrcWrittenRef = useRef(false);
   const lastMountedFilesCountRef = useRef(0);
+  const staticBlobUrlRef = useRef<string | null>(null);
+
+  // Detect project type based on files
+  const projectType: ProjectType = useMemo(() => {
+    const fileKeys = Object.keys(files);
+    if (fileKeys.length === 0) return 'empty';
+    
+    const hasPackageJson = fileKeys.some(f => {
+      const cleanPath = f.startsWith('/') ? f.substring(1) : f;
+      return cleanPath.endsWith('package.json');
+    });
+    
+    if (hasPackageJson) return 'node';
+    
+    const hasHtmlFile = fileKeys.some(f => {
+      const cleanPath = f.startsWith('/') ? f.substring(1) : f;
+      return cleanPath.endsWith('.html');
+    });
+    
+    if (hasHtmlFile) return 'static-html';
+    
+    return 'empty';
+  }, [files]);
+
+  // Static HTML preview: generate Blob URL from HTML content
+  useEffect(() => {
+    if (projectType !== 'static-html') {
+      // Clean up old blob URL if project type changed
+      if (staticBlobUrlRef.current) {
+        URL.revokeObjectURL(staticBlobUrlRef.current);
+        staticBlobUrlRef.current = null;
+      }
+      return;
+    }
+
+    // Don't preview while AI is still generating
+    if (isChatLoading) return;
+
+    const fileKeys = Object.keys(files);
+    
+    // Find the best HTML entry file: index.html > first .html file
+    const findHtmlEntry = (): string | null => {
+      const cleanPaths = fileKeys.map(f => ({
+        original: f,
+        clean: f.startsWith('/') ? f.substring(1) : f,
+      }));
+      
+      // Prefer index.html at any level (root first)
+      const indexHtml = cleanPaths
+        .filter(p => p.clean.endsWith('index.html'))
+        .sort((a, b) => a.clean.split('/').length - b.clean.split('/').length)[0];
+      
+      if (indexHtml) return indexHtml.original;
+      
+      // Fallback to first .html file (prefer shorter paths)
+      const anyHtml = cleanPaths
+        .filter(p => p.clean.endsWith('.html'))
+        .sort((a, b) => a.clean.split('/').length - b.clean.split('/').length)[0];
+      
+      return anyHtml?.original || null;
+    };
+
+    const entryFile = findHtmlEntry();
+    if (!entryFile || !files[entryFile]) return;
+
+    let htmlContent = files[entryFile];
+
+    // Inline CSS/JS references if they exist in the project files
+    // Handle <link rel="stylesheet" href="..."> and <script src="...">
+    htmlContent = htmlContent.replace(
+      /<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*\/?>/gi,
+      (match, href) => {
+        const cssPath = resolveRelativePath(entryFile, href);
+        const cssContent = files[cssPath];
+        if (cssContent) {
+          return `<style>\n${cssContent}\n</style>`;
+        }
+        return match;
+      }
+    );
+
+    htmlContent = htmlContent.replace(
+      /<script\s+[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi,
+      (match, src) => {
+        const jsPath = resolveRelativePath(entryFile, src);
+        const jsContent = files[jsPath];
+        if (jsContent) {
+          return `<script>\n${jsContent}\n</script>`;
+        }
+        return match;
+      }
+    );
+
+    // Revoke old blob URL
+    if (staticBlobUrlRef.current) {
+      URL.revokeObjectURL(staticBlobUrlRef.current);
+    }
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    staticBlobUrlRef.current = blobUrl;
+
+    setPreviewUrl(blobUrl);
+    setDevServer({
+      port: 0,
+      framework: 'Static HTML',
+      url: blobUrl,
+    });
+    setDevServerLogs(prev => [...prev, `[System] Static HTML preview: ${entryFile}`]);
+
+    return () => {
+      // Cleanup is handled on next run or unmount
+    };
+  }, [projectType, files, isChatLoading]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (staticBlobUrlRef.current) {
+        URL.revokeObjectURL(staticBlobUrlRef.current);
+        staticBlobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   // Mount/sync files to WebContainer FS when files change
   // webcontainer.mount() is additive/merge, so calling it multiple times is safe
@@ -244,6 +370,21 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
     restartDevServer,
     refreshPreview,
     isWebContainerLoading,
-    webContainerError
+    webContainerError,
+    projectType
   };
+}
+
+/** Resolve a relative path (like "./style.css" or "js/app.js") against an entry file path */
+function resolveRelativePath(entryFile: string, relativePath: string): string {
+  const cleanEntry = entryFile.startsWith('/') ? entryFile.substring(1) : entryFile;
+  const entryDir = cleanEntry.includes('/') ? cleanEntry.substring(0, cleanEntry.lastIndexOf('/')) : '';
+  
+  let resolved = relativePath;
+  // Remove leading ./
+  if (resolved.startsWith('./')) {
+    resolved = resolved.substring(2);
+  }
+  
+  return entryDir ? `${entryDir}/${resolved}` : resolved;
 }

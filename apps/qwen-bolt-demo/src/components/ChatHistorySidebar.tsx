@@ -3,19 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Trash2, User, Plus, Search, PanelLeftClose } from 'lucide-react';
-import { getAllChatSessions, deleteChatSession, type ChatSession } from '@/lib/chat-persistence';
+import { MessageSquare, Trash2, User, Plus, Search, PanelLeftClose, X, Check } from 'lucide-react';
+import { getAllChatSessions, deleteChatSession, deleteAllChatSessions, type ChatSession } from '@/lib/chat-persistence';
 
 export function ChatHistorySidebar() {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [history, setHistory] = useState<ChatSession[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Track which session is pending delete confirmation (inline)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  // Track whether "clear all" confirmation is showing
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     if (isOpen) {
       loadHistory();
+    } else {
+      // Reset states when sidebar closes
+      setPendingDeleteId(null);
+      setShowClearAllConfirm(false);
     }
   }, [isOpen]);
 
@@ -33,12 +41,27 @@ export function ChatHistorySidebar() {
     }
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (window.confirm(t('chatHistory.deleteConfirm'))) {
-      await deleteChatSession(id);
-      loadHistory();
-    }
+    setPendingDeleteId(id);
+  };
+
+  const handleConfirmDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await deleteChatSession(id);
+    setPendingDeleteId(null);
+    loadHistory();
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPendingDeleteId(null);
+  };
+
+  const handleClearAll = async () => {
+    await deleteAllChatSessions();
+    setShowClearAllConfirm(false);
+    loadHistory();
   };
 
   const filteredHistory = history.filter(session => 
@@ -115,42 +138,110 @@ export function ChatHistorySidebar() {
                     <div className="px-3 py-2 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                         {t('chatHistory.recentChats')}
                     </div>
-                    {filteredHistory.map((session) => (
+                    {filteredHistory.map((session) => {
+                        const isPendingDelete = pendingDeleteId === session.id;
+                        return (
                         <div
                             key={session.id}
                             onClick={() => {
+                              if (isPendingDelete) return;
                               router.push(`/workspace?sessionId=${session.id}`);
                               setIsOpen(false);
                             }}
-                            className="group flex items-center justify-between gap-2 px-3 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                            className={`group flex items-center justify-between gap-2 px-3 py-3 rounded-xl cursor-pointer transition-colors ${
+                              isPendingDelete 
+                                ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30' 
+                                : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                            }`}
                         >
                             <div className="flex items-center gap-3 overflow-hidden">
-                                <MessageSquare className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
+                                <MessageSquare className={`w-4 h-4 shrink-0 ${isPendingDelete ? 'text-red-400' : 'text-gray-400 dark:text-gray-500'}`} />
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-sm text-gray-700 dark:text-gray-200 truncate font-medium">
-                                        {session.title || t('chatHistory.untitled')}
-                                    </span>
-                                    <span className="text-xs text-gray-400 dark:text-gray-500 truncate">
-                                        {new Date(session.updatedAt).toLocaleDateString()}
-                                    </span>
+                                    {isPendingDelete ? (
+                                      <span className="text-sm text-red-600 dark:text-red-400 font-medium">
+                                        {t('chatHistory.deleteConfirm')}
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <span className="text-sm text-gray-700 dark:text-gray-200 truncate font-medium">
+                                            {session.title || t('chatHistory.untitled')}
+                                        </span>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                            {new Date(session.updatedAt).toLocaleDateString()}
+                                        </span>
+                                      </>
+                                    )}
                                 </div>
                             </div>
-                            <button
-                                onClick={(e) => handleDeleteSession(e, session.id)}
+                            {isPendingDelete ? (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={(e) => handleConfirmDelete(e, session.id)}
+                                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-red-500 transition-colors"
+                                  title={t('chatHistory.confirmDelete')}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={handleCancelDelete}
+                                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg text-gray-400 transition-colors"
+                                  title={t('chatHistory.cancelDelete')}
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => handleDeleteClick(e, session.id)}
                                 className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-500 transition-all shrink-0"
                                 title={t('chatHistory.deleteTooltip')}
-                            >
+                              >
                                 <Trash2 className="w-4 h-4" />
-                            </button>
+                              </button>
+                            )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
         
-        {/* Footer info */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 text-xs text-center text-gray-400 dark:text-gray-500 shrink-0">
-            {t('chatHistory.storedConversations', { count: history.length })}
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 shrink-0 space-y-3">
+            {history.length > 0 && (
+              showClearAllConfirm ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30 rounded-xl">
+                  <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                    {t('chatHistory.clearAllConfirm')}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={handleClearAll}
+                      className="px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                    >
+                      {t('chatHistory.confirm')}
+                    </button>
+                    <button
+                      onClick={() => setShowClearAllConfirm(false)}
+                      className="px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      {t('chatHistory.cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowClearAllConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 border border-red-200 dark:border-red-800/30 rounded-xl transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{t('chatHistory.clearAll')}</span>
+                </button>
+              )
+            )}
+            <div className="text-xs text-center text-gray-400 dark:text-gray-500">
+              {t('chatHistory.storedConversations', { count: history.length })}
+            </div>
         </div>
       </div>
 

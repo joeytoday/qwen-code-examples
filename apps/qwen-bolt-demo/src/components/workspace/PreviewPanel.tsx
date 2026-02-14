@@ -1,8 +1,9 @@
 'use client';
 
-import { Code2, Maximize2, Minimize2 } from 'lucide-react';
+import { Code2, Maximize2, Minimize2, FileCode2, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip } from '@/components/ui/Tooltip';
+import type { ProjectType } from '@/hooks/useDevServer';
 
 interface DevServer {
   port: number;
@@ -17,6 +18,8 @@ interface PreviewPanelProps {
   serverError: string;
   hasFiles: boolean;
   onOpenInNewTab: () => void;
+  projectType?: ProjectType;
+  isChatLoading?: boolean;
 }
 
 export function PreviewPanel({
@@ -26,6 +29,8 @@ export function PreviewPanel({
   serverError,
   hasFiles,
   onOpenInNewTab,
+  projectType = 'empty',
+  isChatLoading = false,
 }: PreviewPanelProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -73,9 +78,27 @@ export function PreviewPanel({
         ) : (
           <div className="h-full flex items-center justify-center text-gray-500">
             <div className="text-center px-8">
-              <Code2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400 dark:text-gray-600" />
-              {hasFiles ? (
+              {isChatLoading ? (
                 <>
+                  <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <div className="w-10 h-10 border-3 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">Generating...</p>
+                  <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
+                    AI is generating your project, preview will appear automatically
+                  </p>
+                </>
+              ) : projectType === 'static-html' ? (
+                <>
+                  <FileCode2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-blue-400 dark:text-blue-500" />
+                  <p className="text-lg font-medium text-gray-900 dark:text-white">Preparing HTML Preview</p>
+                  <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
+                    Static HTML files will be previewed directly
+                  </p>
+                </>
+              ) : projectType === 'node' && hasFiles ? (
+                <>
+                  <Globe className="w-16 h-16 mx-auto mb-4 opacity-30 text-green-400 dark:text-green-500" />
                   <p className="text-lg font-medium text-gray-900 dark:text-white">No Preview Available</p>
                   {isStartingServer ? (
                     <div className="mt-4 flex items-center justify-center gap-2 text-blue-400">
@@ -90,6 +113,7 @@ export function PreviewPanel({
                 </>
               ) : (
                 <>
+                  <Code2 className="w-16 h-16 mx-auto mb-4 opacity-30 text-gray-400 dark:text-gray-600" />
                   <p className="text-lg font-medium text-gray-900 dark:text-white">No files yet</p>
                   <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
                     Start chatting with AI to generate your project

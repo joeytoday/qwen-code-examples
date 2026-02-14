@@ -97,8 +97,14 @@
     "noRecent": "No recent chats",
     "recentChats": "Recent Chats",
     "untitled": "Untitled",
-    "deleteConfirm": "Delete this chat?",
+    "deleteConfirm": "Delete?",
+    "confirmDelete": "Confirm delete",
+    "cancelDelete": "Cancel",
     "deleteTooltip": "Delete chat",
+    "clearAll": "Clear all chats",
+    "clearAllConfirm": "Clear all chats?",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
     "storedConversations": "{{count}} stored conversations",
     "openHistory": "Open Chat History"
   }

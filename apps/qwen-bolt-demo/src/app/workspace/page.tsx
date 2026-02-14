@@ -79,10 +79,11 @@ function WorkspaceContent() {
     serverError,
     devServerLogs,
     startDevServer,
-    restartDevServer, // Add this
+    restartDevServer,
     refreshPreview,
     isWebContainerLoading,
-    webContainerError
+    webContainerError,
+    projectType
   } = useDevServer(sessionId, files, isLoading);
 
   // Add local previewUrl state to allow updating previewUrl
@@ -258,6 +259,8 @@ function WorkspaceContent() {
                 serverError={serverError}
                 hasFiles={Object.keys(files).length > 0}
                 onOpenInNewTab={handleOpenInNewTab}
+                projectType={projectType}
+                isChatLoading={isLoading}
               />
             </div>
           </div>
