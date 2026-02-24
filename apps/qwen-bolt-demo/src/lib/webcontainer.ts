@@ -1,5 +1,8 @@
 import { WebContainer } from '@webcontainer/api';
 
+// Boot timeout in milliseconds (2 minutes)
+const BOOT_TIMEOUT_MS = 120_000;
+
 // Use globalThis to persist instance across HMR in development
 const globalContext = globalThis as unknown as {
   _webcontainerInstance: WebContainer | null;
@@ -17,21 +20,49 @@ export async function getWebContainer(): Promise<WebContainer> {
 
   // Add COOP/COEP check
   if (typeof window !== 'undefined' && window.crossOriginIsolated === false) {
-    console.warn('[WebContainer] App is not cross-origin isolated. WebContainer will not boot.');
-    // Ideally throw error, but let's try to boot anyway so error is caught in logs
+    console.warn('[WebContainer] App is not cross-origin isolated. WebContainer may not boot.');
   }
 
   console.log('[WebContainer] Booting...');
-  globalContext._webcontainerBootPromise = WebContainer.boot({
-    workdirName: 'project',
+
+  // Use a cancellable timeout to avoid unhandled rejection when boot succeeds after timeout fires
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  globalContext._webcontainerBootPromise = new Promise<WebContainer>((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      reject(new Error(
+        `WebContainer boot timed out after ${BOOT_TIMEOUT_MS / 1000}s. ` +
+        'This is usually caused by slow network or WebAssembly compilation issues. ' +
+        'Please refresh the page to retry.'
+      ));
+    }, BOOT_TIMEOUT_MS);
+
+    WebContainer.boot({ workdirName: 'project' }).then(
+      (instance) => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+          resolve(instance);
+        }
+        // If timeout already fired, boot result is discarded
+      },
+      (error) => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        reject(error);
+      }
+    );
   });
-  
+
   try {
     globalContext._webcontainerInstance = await globalContext._webcontainerBootPromise;
     console.log('[WebContainer] Booted successfully.');
     return globalContext._webcontainerInstance;
   } catch (error) {
-    console.error('[WebContainer] Boot failed:', error);
+    console.warn('[WebContainer] Boot failed:', error);
     globalContext._webcontainerBootPromise = null;
     throw error;
   }

@@ -70,7 +70,7 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const { webcontainer, isLoading } = useWebContainer();
+  const { webcontainer, isLoading, error: webContainerError } = useWebContainer();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const shellProcessRef = useRef<any>(null);
@@ -149,6 +149,18 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
       initializedRef.current = false;
     };
   }, [readonly]);
+
+  // Show error if WebContainer boot failed
+  useEffect(() => {
+    if (!webContainerError || !terminalRef.current) return;
+    const term = terminalRef.current;
+    term.writeln('');
+    term.writeln('\x1b[31mWebContainer failed to start:\x1b[0m');
+    term.writeln(`\x1b[31m${webContainerError.message}\x1b[0m`);
+    term.writeln('');
+    term.writeln('\x1b[33mThis is usually caused by a network issue loading WebAssembly files.\x1b[0m');
+    term.writeln('\x1b[33mPlease refresh the page to retry.\x1b[0m');
+  }, [webContainerError]);
 
   // Connect to WebContainer Shell
   useEffect(() => {

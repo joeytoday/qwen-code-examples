@@ -19,7 +19,9 @@ export function useWebContainer() {
           setWebcontainer(instance);
         }
       } catch (err) {
-        console.error('Failed to boot WebContainer:', err);
+        // Use console.warn instead of console.error to avoid triggering Next.js Error Overlay in dev mode.
+        // The error is already displayed in the terminal UI via the webContainerError state.
+        console.warn('[WebContainer] Boot failed:', err);
         if (mountedRef.current) {
           setError(err instanceof Error ? err : new Error(String(err)));
         }
