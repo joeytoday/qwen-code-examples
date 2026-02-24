@@ -3,91 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { Code2, History, Trash2, MessageSquare, File, Folder, X } from 'lucide-react';
+import { Code2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ModelConfigSettings } from '@/components/ModelConfigSettings';
 import { ChatHistorySidebar } from '@/components/ChatHistorySidebar';
 import { FileAttachment, AttachedFile } from '@/components/FileAttachment';
+import { AttachedFilesDisplay } from '@/components/chat';
+import type { AttachedFileItem } from '@/components/chat';
 import { useProject, UploadedFile } from '@/contexts/ProjectContext';
-
-function AttachedFilesDisplay({ 
-  attachedFiles, 
-  onFileRemoved, 
-  onFolderRemoved 
-}: { 
-  attachedFiles: AttachedFile[];
-  onFileRemoved: (fileId: string) => void;
-  onFolderRemoved: (folderName: string) => void;
-}) {
-  if (attachedFiles.length === 0) return null;
-
-  // Group by folder
-  const folderGroups = new Map<string, AttachedFile[]>();
-  const standaloneFiles: AttachedFile[] = [];
-  
-  attachedFiles.forEach(file => {
-    if (file.isFolder && file.folderName) {
-      if (!folderGroups.has(file.folderName)) {
-        folderGroups.set(file.folderName, []);
-      }
-      folderGroups.get(file.folderName)!.push(file);
-    } else {
-      standaloneFiles.push(file);
-    }
-  });
-
-  return (
-    <div className="mb-3 px-8 flex flex-wrap gap-2">
-      {/* Display folders */}
-      {Array.from(folderGroups.entries()).map(([folderName, files]) => (
-        <div
-          key={folderName}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs group"
-        >
-          <Folder className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span className="text-blue-600 dark:text-blue-400 font-medium">
-            {folderName}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400 text-[10px]">
-            ({files.length} files)
-          </span>
-          <button
-            onClick={() => onFolderRemoved(folderName)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
-            title="Remove folder"
-          >
-            <X className="w-3 h-3 text-red-500" />
-          </button>
-        </div>
-      ))}
-      
-      {/* Display standalone files */}
-      {standaloneFiles.map((file) => (
-        <div
-          key={file.id}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs group"
-        >
-          <File className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span className="text-blue-600 dark:text-blue-400 font-medium truncate max-w-[150px]" title={file.path}>
-            {file.name}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400 text-[10px]">
-            {(file.size / 1024).toFixed(1)}KB
-          </span>
-          <button
-            onClick={() => onFileRemoved(file.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
-            title="Remove file"
-          >
-            <X className="w-3 h-3 text-red-500" />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function Home() {
   const { t } = useTranslation();
@@ -211,9 +136,10 @@ export default function Home() {
               <div className="relative bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700/50 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl">
                 <div className="pt-4">
                   <AttachedFilesDisplay 
-                    attachedFiles={attachedFiles}
+                    attachedFiles={attachedFiles as AttachedFileItem[]}
                     onFileRemoved={handleFileRemoved}
                     onFolderRemoved={handleFolderRemoved}
+                    className="mb-3 px-8"
                   />
                 </div>
                 <textarea

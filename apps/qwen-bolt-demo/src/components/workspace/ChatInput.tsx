@@ -1,9 +1,11 @@
 'use client';
 
 import { KeyboardEvent, useEffect, useRef } from 'react';
-import { Send, X, File, Folder, Square } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 import { FileAttachment } from '@/components/FileAttachment';
 import { TokenDisplay } from '@/components/TokenDisplay';
+import { AttachedFilesDisplay } from '@/components/chat';
+import type { AttachedFileItem } from '@/components/chat';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from 'react-i18next';
 
@@ -28,83 +30,6 @@ interface ChatInputProps {
   onFilesAttached: (files: AttachedFile[]) => void;
   onFileRemoved: (fileId: string) => void;
   onFolderRemoved: (folderName: string) => void;
-}
-
-function AttachedFilesDisplay({ 
-  attachedFiles, 
-  onFileRemoved, 
-  onFolderRemoved 
-}: { 
-  attachedFiles: AttachedFile[];
-  onFileRemoved: (fileId: string) => void;
-  onFolderRemoved: (folderName: string) => void;
-}) {
-  if (attachedFiles.length === 0) return null;
-
-  // Group by folder
-  const folderGroups = new Map<string, AttachedFile[]>();
-  const standaloneFiles: AttachedFile[] = [];
-  
-  attachedFiles.forEach(file => {
-    if (file.isFolder && file.folderName) {
-      if (!folderGroups.has(file.folderName)) {
-        folderGroups.set(file.folderName, []);
-      }
-      folderGroups.get(file.folderName)!.push(file);
-    } else {
-      standaloneFiles.push(file);
-    }
-  });
-
-  return (
-    <div className="mb-3 flex flex-wrap gap-2">
-      {/* Display folders */}
-      {Array.from(folderGroups.entries()).map(([folderName, files]) => (
-        <div
-          key={folderName}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs group"
-        >
-          <Folder className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span className="text-blue-600 dark:text-blue-400 font-medium">
-            {folderName}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400 text-[10px]">
-            ({files.length} files)
-          </span>
-          <button
-            onClick={() => onFolderRemoved(folderName)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
-            title="Remove folder"
-          >
-            <X className="w-3 h-3 text-red-500" />
-          </button>
-        </div>
-      ))}
-      
-      {/* Display standalone files */}
-      {standaloneFiles.map((file) => (
-        <div
-          key={file.id}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-xs group"
-        >
-          <File className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          <span className="text-blue-600 dark:text-blue-400 font-medium truncate max-w-[150px]" title={file.path}>
-            {file.name}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400 text-[10px]">
-            {(file.size / 1024).toFixed(1)}KB
-          </span>
-          <button
-            onClick={() => onFileRemoved(file.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
-            title="Remove file"
-          >
-            <X className="w-3 h-3 text-red-500" />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export function ChatInput({
@@ -140,9 +65,10 @@ export function ChatInput({
   return (
     <div className="p-4 border-t border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-black">
       <AttachedFilesDisplay 
-        attachedFiles={attachedFiles}
+        attachedFiles={attachedFiles as AttachedFileItem[]}
         onFileRemoved={onFileRemoved}
         onFolderRemoved={onFolderRemoved}
+        className="mb-3"
       />
       
       <div className="flex gap-2 mb-2">

@@ -18,6 +18,7 @@ import {
   ViewMode,
   AttachedFile,
 } from '@/components/workspace';
+import { ChatPanel } from '@/components/chat';
 import { downloadProjectAsZip } from '@/lib/file-utils';
 
 function WorkspaceContent() {
@@ -191,39 +192,39 @@ function WorkspaceContent() {
   return (
     <div className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-white relative transition-colors">
       {/* Left: Chat area */}
-      <div className="w-[480px] flex flex-col border-r border-gray-200/60 dark:border-gray-800/60">
-        <ChatHeader 
-          onDownloadProject={() => downloadProjectAsZip(files)} 
-        />
-        
-        <MessageList
-          messages={messages}
-          currentResponse={currentResponse}
-          messagesEndRef={messagesEndRef}
-          isLoading={isLoading}
-        />
-        
-        <ChatInput
-          input={input}
-          isLoading={isLoading}
-          attachedFiles={attachedFiles}
-          onInputChange={setInput}
-          onSend={() => sendMessage()}
-          onStop={stop}
-          onFilesAttached={(newFiles) => {
-            setAttachedFiles(prev => [...prev, ...newFiles]);
-            // Also update the workspace files so they are visible in the code panel
-            newFiles.forEach(file => {
-               // Only update if it's not a folder placeholder (though FileAttachment distincts folder vs file, the logic returns files)
-               if (!file.isFolder || (file.isFolder && file.content)) { 
-                   updateFile(file.path, file.content); 
-               }
-            });
-          }}
-          onFileRemoved={(fileId) => setAttachedFiles(prev => prev.filter(f => f.id !== fileId))}
-          onFolderRemoved={(folderName) => setAttachedFiles(prev => prev.filter(f => f.folderName !== folderName))}
-        />
-      </div>
+      <ChatPanel
+        header={
+          <ChatHeader onDownloadProject={() => downloadProjectAsZip(files)} />
+        }
+        messageList={
+          <MessageList
+            messages={messages}
+            currentResponse={currentResponse}
+            messagesEndRef={messagesEndRef}
+            isLoading={isLoading}
+          />
+        }
+        input={
+          <ChatInput
+            input={input}
+            isLoading={isLoading}
+            attachedFiles={attachedFiles}
+            onInputChange={setInput}
+            onSend={() => sendMessage()}
+            onStop={stop}
+            onFilesAttached={(newFiles) => {
+              setAttachedFiles(prev => [...prev, ...newFiles]);
+              newFiles.forEach(file => {
+                if (!file.isFolder || (file.isFolder && file.content)) { 
+                  updateFile(file.path, file.content); 
+                }
+              });
+            }}
+            onFileRemoved={(fileId) => setAttachedFiles(prev => prev.filter(f => f.id !== fileId))}
+            onFolderRemoved={(folderName) => setAttachedFiles(prev => prev.filter(f => f.folderName !== folderName))}
+          />
+        }
+      />
 
       {/* Middle & Right: Code editor and Preview */}
       <div className="flex-1 flex flex-col overflow-hidden">

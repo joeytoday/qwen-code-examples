@@ -1,10 +1,10 @@
 'use client';
 
 import { RefObject } from 'react';
-import { File, Folder } from 'lucide-react';
 import { PlanMessage, containsPlan } from '@/components/PlanMessage';
 import { SummaryMessage, containsSummary } from '@/components/SummaryMessage';
-import { MarkdownRenderer } from '@/components/MarkdownRenderer';
+import { UserMessageBubble, AssistantMessageBubble, StreamingIndicator } from '@/components/chat';
+import type { AttachedFileItem } from '@/components/chat';
 
 interface AttachedFile {
   id: string;
@@ -32,123 +32,27 @@ interface MessageListProps {
   isLoading: boolean;
 }
 
-function UserMessage({ message }: { message: Message }) {
-  return (
-    <div className="max-w-[85%]">
-      {/* Display attachments */}
-      {message.attachedFiles && message.attachedFiles.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {(() => {
-            // Group by folder
-            const folderGroups = new Map<string, AttachedFile[]>();
-            const standaloneFiles: AttachedFile[] = [];
-            
-            message.attachedFiles.forEach(file => {
-              if (file.isFolder && file.folderName) {
-                if (!folderGroups.has(file.folderName)) {
-                  folderGroups.set(file.folderName, []);
-                }
-                folderGroups.get(file.folderName)!.push(file);
-              } else {
-                standaloneFiles.push(file);
-              }
-            });
-            
-            return (
-              <>
-                {/* Display folders */}
-                {Array.from(folderGroups.entries()).map(([folderName, files]) => (
-                  <div
-                    key={folderName}
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500 dark:bg-blue-500/80 rounded text-xs shadow-sm"
-                  >
-                    <Folder className="w-3 h-3 text-white/90" />
-                    <span className="text-white font-medium">{folderName}</span>
-                    <span className="text-white/70 text-[10px]">({files.length} files)</span>
-                  </div>
-                ))}
-                
-                {/* Display standalone files */}
-                {standaloneFiles.map(file => (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500 dark:bg-blue-500/80 rounded text-xs shadow-sm"
-                  >
-                    <File className="w-3 h-3 text-white/90" />
-                    <span className="text-white font-medium truncate max-w-[120px]" title={file.path}>
-                      {file.name}
-                    </span>
-                  </div>
-                ))}
-              </>
-            );
-          })()}
-        </div>
-      )}
-      
-      {/* Message content */}
-      <div className="rounded-2xl px-4 py-3 bg-blue-600 dark:bg-blue-600/80 text-white">
-        <div className="text-sm whitespace-pre-wrap break-words">{message.content}</div>
-      </div>
-    </div>
-  );
-}
-
-function AssistantMessage({ content }: { content: string }) {
-  return (
-    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
-      <MarkdownRenderer content={content} className="text-sm" />
-    </div>
-  );
-}
-
 function StreamingResponse({ content }: { content: string }) {
   const isPlan = containsPlan(content);
   const isSummary = !isPlan && containsSummary(content);
 
-  if (!content) {
-    return (
-      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-      </div>
-    );
-  }
-
   if (isPlan) {
     return (
-      <div className="max-w-[85%]">
+      <StreamingIndicator content={content}>
         <PlanMessage content={content} />
-        <div className="flex items-center mt-2 text-blue-400">
-          <div className="animate-pulse">●</div>
-          <span className="ml-2 text-xs">Typing...</span>
-        </div>
-      </div>
+      </StreamingIndicator>
     );
   }
 
   if (isSummary) {
     return (
-      <div className="max-w-[85%]">
+      <StreamingIndicator content={content}>
         <SummaryMessage content={content} />
-        <div className="flex items-center mt-2 text-blue-400">
-          <div className="animate-pulse">●</div>
-          <span className="ml-2 text-xs">Typing...</span>
-        </div>
-      </div>
+      </StreamingIndicator>
     );
   }
 
-  return (
-    <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
-      <MarkdownRenderer content={content} className="text-sm" />
-      <div className="flex items-center mt-2 text-blue-400">
-        <div className="animate-pulse">●</div>
-        <span className="ml-2 text-xs">Typing...</span>
-      </div>
-    </div>
-  );
+  return <StreamingIndicator content={content} />;
 }
 
 export function MessageList({ messages, currentResponse, messagesEndRef, isLoading }: MessageListProps) {
@@ -164,7 +68,7 @@ export function MessageList({ messages, currentResponse, messagesEndRef, isLoadi
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.role === 'user' ? (
-              <UserMessage message={msg} />
+              <UserMessageBubble content={msg.content} attachedFiles={msg.attachedFiles as AttachedFileItem[]} />
             ) : isPlan ? (
               <div className="max-w-[85%]">
                 <PlanMessage content={msg.content} />
@@ -174,7 +78,7 @@ export function MessageList({ messages, currentResponse, messagesEndRef, isLoadi
                 <SummaryMessage content={msg.content} />
               </div>
             ) : (
-              <AssistantMessage content={msg.content} />
+              <AssistantMessageBubble content={msg.content} />
             )}
           </div>
         );
