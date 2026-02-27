@@ -23,11 +23,11 @@ export function ChatPanel({
   header,
   messageList,
   input,
-  widthClass = 'w-[480px]',
+  widthClass = 'w-full md:w-[420px] lg:w-[480px]',
   className = '',
 }: ChatPanelProps) {
   return (
-    <div className={`${widthClass} flex flex-col border-r border-gray-200/60 dark:border-gray-800/60 ${className}`}>
+    <div className={`${widthClass} flex flex-col border-r border-gray-200/60 dark:border-gray-800/60 flex-shrink-0 ${className}`}>
       {header}
       {messageList}
       {input}

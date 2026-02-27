@@ -7,6 +7,7 @@ import { CodeEditorPanel } from './CodeEditorPanel';
 import { PanelLeft, GripVertical, Copy, Check, Save, RotateCcw } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import logger from '@/lib/logger';
+import { showToast } from '@/hooks/useToast';
 
 export const MultiFileCodeRenderer: React.FC<
   MultiFileCodeRendererProps & { tabBarExtraContent?: React.ReactNode; sessionId?: string }
@@ -29,8 +30,6 @@ export const MultiFileCodeRenderer: React.FC<
   // We sort keys to ensure deterministic behavior
   const filePaths = React.useMemo(() => Object.keys(files).sort(), [files]);
   const activeFile = propActiveFile || filePaths[0] || '';
-
-  logger.debug(`[MultiFileCodeRenderer] Render. Active: ${activeFile}, FileHash: ${files[activeFile]?.slice(0,20).replace(/\n/g, '\\n')}..., FileKeys: ${Object.keys(files).length}`);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [fileTreeWidth, setFileTreeWidth] = useState(256);
@@ -72,9 +71,11 @@ export const MultiFileCodeRenderer: React.FC<
     try {
       await navigator.clipboard.writeText(files[activeFile]);
       setCopied(true);
+      showToast('Code copied to clipboard', 'success');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy code:', err);
+      logger.error('Failed to copy code:', err);
+      showToast('Failed to copy code', 'error');
     }
   };
 

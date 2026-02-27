@@ -85,7 +85,7 @@ export function ChatInput({
           ref={textareaRef}
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           placeholder={t('chat.placeholder')}
           disabled={isLoading}
           className="w-full px-6 py-5 pr-14 bg-white dark:bg-gray-900 border border-gray-300/60 dark:border-gray-700/60 rounded-2xl resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-base text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-all"

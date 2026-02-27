@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/components/ui/Tooltip';
-import logger from '@/lib/logger';
 
 export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' }) {
   const { t } = useTranslation();
@@ -31,19 +30,11 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
   }, [isOpen]);
 
   const handleModelSelect = (model: string) => {
-    logger.debug('[ModelSelector] Selecting model:', model);
-    logger.debug('[ModelSelector] Current model before update:', settings.modelConfig.model);
     updateModelConfig({ model });
-    logger.debug('[ModelSelector] updateModelConfig called');
     setIsOpen(false);
   };
 
   const currentModel = settings.modelConfig.model;
-  
-  // Debug log
-  useEffect(() => {
-    logger.debug('[ModelSelector] Current model changed to:', currentModel);
-  }, [currentModel]);
   
   const displayName = currentModel.includes('qwen-coder-plus')
     ? 'Qwen Coder+' 
@@ -73,7 +64,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
       {isOpen && (
         <div className={`absolute top-full mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-[9999] overflow-hidden ${align === 'left' ? 'left-0' : 'right-0'}`}>
           <div className="p-3">
-            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium mb-2">Qwen Models</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium mb-2">{t('modelConfig.qwenModels')}</div>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleModelSelect('qwen-coder-plus')}
@@ -84,7 +75,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
                 }`}
               >
                 <div className="font-medium text-xs">Qwen Coder+</div>
-                <div className="text-xs opacity-70 mt-0.5">Most capable</div>
+                <div className="text-xs opacity-70 mt-0.5">{t('modelConfig.mostCapable')}</div>
               </button>
               <button
                 onClick={() => handleModelSelect('qwen-coder-turbo')}
@@ -95,7 +86,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
                 }`}
               >
                 <div className="font-medium text-xs">Qwen Coder Turbo</div>
-                <div className="text-xs opacity-70 mt-0.5">Fast & efficient</div>
+                <div className="text-xs opacity-70 mt-0.5">{t('modelConfig.fastEfficient')}</div>
               </button>
               <button
                 onClick={() => handleModelSelect('qwen-plus')}
@@ -106,7 +97,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
                 }`}
               >
                 <div className="font-medium text-xs">Qwen Plus</div>
-                <div className="text-xs opacity-70 mt-0.5">General purpose</div>
+                <div className="text-xs opacity-70 mt-0.5">{t('modelConfig.generalPurpose')}</div>
               </button>
               <button
                 onClick={() => handleModelSelect('qwen-turbo')}
@@ -117,7 +108,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
                 }`}
               >
                 <div className="font-medium text-xs">Qwen Turbo</div>
-                <div className="text-xs opacity-70 mt-0.5">Balanced</div>
+                <div className="text-xs opacity-70 mt-0.5">{t('modelConfig.balanced')}</div>
               </button>
               <button
                 onClick={() => handleModelSelect('qwen-max')}
@@ -128,7 +119,7 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
                 }`}
               >
                 <div className="font-medium text-xs">Qwen3 Max</div>
-                <div className="text-xs opacity-70 mt-0.5">Maximum</div>
+                <div className="text-xs opacity-70 mt-0.5">{t('modelConfig.maximum')}</div>
               </button>
             </div>
           </div>
@@ -136,9 +127,9 @@ export function ModelSelector({ align = 'right' }: { align?: 'left' | 'right' })
           <div className="border-t border-gray-200 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-gray-800/50">
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {settings.modelConfig.authType === 'qwen-oauth' ? (
-                <span>✓ Using Qwen OAuth (Free)</span>
+                <span>✓ {t('modelConfig.usingQwenOauth')}</span>
               ) : (
-                <span>✓ Using OpenAI API Key</span>
+                <span>✓ {t('modelConfig.usingOpenaiKey')}</span>
               )}
             </div>
           </div>

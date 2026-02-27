@@ -21,10 +21,9 @@ export async function getWebContainer(): Promise<WebContainer> {
 
   // Add COOP/COEP check
   if (typeof window !== 'undefined' && window.crossOriginIsolated === false) {
-    console.warn('[WebContainer] App is not cross-origin isolated. WebContainer may not boot.');
+    logger.warn('[WebContainer] App is not cross-origin isolated. WebContainer may not boot.');
   }
 
-  logger.debug('[WebContainer] Booting...');
 
   // Use a cancellable timeout to avoid unhandled rejection when boot succeeds after timeout fires
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -60,10 +59,9 @@ export async function getWebContainer(): Promise<WebContainer> {
 
   try {
     globalContext._webcontainerInstance = await globalContext._webcontainerBootPromise;
-    logger.debug('[WebContainer] Booted successfully.');
     return globalContext._webcontainerInstance;
   } catch (error) {
-    console.warn('[WebContainer] Boot failed:', error);
+    logger.warn('[WebContainer] Boot failed:', error);
     globalContext._webcontainerBootPromise = null;
     throw error;
   }

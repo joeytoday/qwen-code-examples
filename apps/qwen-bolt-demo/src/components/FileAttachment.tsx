@@ -50,7 +50,7 @@ export function FileAttachment({ attachedFiles, onFilesAttached, onFileRemoved }
     // Let's filter first to avoid reading large files
     const validSizeFiles = fileArray.filter(file => {
         if (file.size > MAX_SIZE) {
-            console.warn(`[FileAttachment] File ${file.name} (size: ${file.size}) exceeds limit of ${MAX_SIZE} bytes. Skipped.`);
+            logger.warn(`[FileAttachment] File ${file.name} (size: ${file.size}) exceeds limit of ${MAX_SIZE} bytes. Skipped.`);
             return false;
         }
         return true;
@@ -77,7 +77,7 @@ export function FileAttachment({ attachedFiles, onFilesAttached, onFileRemoved }
             fileCount: isFolder ? fileArray.length : undefined,
           } as AttachedFile;
         } catch (error) {
-          console.error(`Failed to read file ${file.name}:`, error);
+          logger.error(`Failed to read file ${file.name}:`, error);
           return null;
         }
       })
@@ -97,19 +97,11 @@ export function FileAttachment({ attachedFiles, onFilesAttached, onFileRemoved }
                  ...f,
                  path: f.path.slice(commonPrefix.length), // Remove the "MyApp/" prefix
              }));
-             logger.debug(`[FileAttachment] Flattened project structure by removing prefix: ${commonPrefix}`);
          }
     }
     
     if (validFiles.length > 0) {
       onFilesAttached(validFiles);
-      logger.debug('[FileAttachment] Uploaded files:', validFiles.map(f => ({ 
-        name: f.name, 
-        path: f.path, 
-        size: f.size,
-        isFolder: f.isFolder,
-        folderName: f.folderName,
-      })));
     }
     
     setIsOpen(false);
@@ -145,14 +137,14 @@ export function FileAttachment({ attachedFiles, onFilesAttached, onFileRemoved }
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             >
               <File className="w-4 h-4" />
-              {t('projectSettings.uploadFiles')}
+              {t('fileAttachment.uploadFiles')}
             </button>
             <button
               onClick={() => folderInputRef.current?.click()}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
             >
               <Folder className="w-4 h-4" />
-              {t('projectSettings.uploadFolder')}
+              {t('fileAttachment.uploadFolder')}
             </button>
           </div>
         </>

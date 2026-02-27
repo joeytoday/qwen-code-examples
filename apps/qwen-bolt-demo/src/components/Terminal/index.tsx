@@ -135,7 +135,7 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
             shellProcessRef.current.resize({ cols, rows });
           }
         } catch (e) {
-          console.error('Resize error:', e);
+          logger.error('Resize error:', e);
         }
       });
     });
@@ -221,7 +221,6 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
               // Only the primary terminal emits shell-ready for auto-start
               if (isPrimary && !shellReady && SHELL_PROMPT_CHARS.some(ch => data.includes(ch))) {
                 shellReady = true;
-                logger.debug('[Terminal] Shell is ready, dispatching shell-ready event');
                 window.dispatchEvent(new CustomEvent('bolt:shell-ready'));
               }
             },
@@ -254,7 +253,7 @@ const Terminal = memo(({ className = '', readonly = false, isPrimary = false }: 
         }
         
       } catch (error) {
-        console.error('Terminal shell error:', error);
+        logger.error('Terminal shell error:', error);
         terminalRef.current?.writeln(`\r\n\x1b[31mError starting shell: ${error}\x1b[0m`);
         initializedRef.current = false;
       }

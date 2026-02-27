@@ -7,7 +7,6 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useTranslation } from 'react-i18next';
 import type { ModelConfig } from '@/contexts/ProjectContext';
 import { Tooltip } from '@/components/ui/Tooltip';
-import logger from '@/lib/logger';
 
 export function ModelConfigSettings() {
   const { t } = useTranslation();
@@ -29,7 +28,6 @@ export function ModelConfigSettings() {
   }, [settings.modelConfig, isOpen]);
 
   const handleSave = () => {
-    logger.debug('[ModelConfigSettings] Saving config:', modelConfig);
     updateModelConfig(modelConfig);
     setIsOpen(false);
   };
@@ -84,8 +82,8 @@ export function ModelConfigSettings() {
                       className="mt-1 w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">Qwen OAuth (Recommended)</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Free with 2,000 daily requests. Browser login required.</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{t('modelConfig.qwenOauth')}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('modelConfig.qwenOauthDesc')}</div>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -98,8 +96,8 @@ export function ModelConfigSettings() {
                       className="mt-1 w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">OpenAI API Key</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use OpenAI-compatible API with custom endpoint.</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{t('modelConfig.openaiApiKey')}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('modelConfig.openaiApiKeyDesc')}</div>
                     </div>
                   </label>
                 </div>

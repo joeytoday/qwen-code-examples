@@ -46,7 +46,7 @@ export function EditorSettings() {
               {/* Font Size */}
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
-                  <span>Font Size</span>
+                  <span>{t('editor.fontSize')}</span>
                   <span className="text-blue-500">{settings.fontSize}px</span>
                 </label>
                 <input
@@ -62,7 +62,7 @@ export function EditorSettings() {
               {/* Line Height */}
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
-                  <span>Line Height</span>
+                  <span>{t('editor.lineHeight')}</span>
                   <span className="text-blue-500">{settings.lineHeight}</span>
                 </label>
                 <input
@@ -83,13 +83,13 @@ export function EditorSettings() {
                 onClick={resetSettings}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
-                Reset to Default
+                {t('editor.resetDefault')}
               </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
               >
-                Done
+                {t('projectSettings.done')}
               </button>
             </div>
           </div>

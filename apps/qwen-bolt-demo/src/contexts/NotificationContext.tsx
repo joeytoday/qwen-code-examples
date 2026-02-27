@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useSound } from '@/hooks/useSound';
+import logger from '@/lib/logger';
 
 interface NotificationSettings {
   soundEnabled: boolean;
@@ -33,7 +34,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       try {
         setSettings(JSON.parse(stored));
       } catch (e) {
-        console.error('Failed to parse notification settings:', e);
+        logger.error('Failed to parse notification settings:', e);
       }
     }
   }, []);

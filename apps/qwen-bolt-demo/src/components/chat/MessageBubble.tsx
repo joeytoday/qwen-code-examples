@@ -1,6 +1,7 @@
 'use client';
 
 import { File, Folder } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import type { AttachedFileItem } from './AttachedFilesDisplay';
 
@@ -91,6 +92,11 @@ export function AssistantMessageBubble({ content }: AssistantMessageBubbleProps)
  * Displays a streaming response indicator with optional content.
  * Shows bouncing dots when empty, or content with a "Typing..." indicator.
  */
+function StreamingLabel() {
+  const { t } = useTranslation();
+  return <span className="ml-2 text-xs">{t('streaming.typing')}</span>;
+}
+
 export function StreamingIndicator({ content, children }: { content: string; children?: React.ReactNode }) {
   if (!content) {
     return (
@@ -111,7 +117,7 @@ export function StreamingIndicator({ content, children }: { content: string; chi
       )}
       <div className="flex items-center mt-2 text-blue-400">
         <div className="animate-pulse">●</div>
-        <span className="ml-2 text-xs">Typing...</span>
+        <StreamingLabel />
       </div>
     </div>
   );

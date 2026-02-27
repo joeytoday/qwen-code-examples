@@ -10,6 +10,7 @@ import { ModelSelector } from '@/components/ModelSelector';
 import { ModelConfigSettings } from '@/components/ModelConfigSettings';
 import { ChatHistorySidebar } from '@/components/ChatHistorySidebar';
 import { FileAttachment, AttachedFile } from '@/components/FileAttachment';
+import { OnboardingGuide } from '@/components/ui/OnboardingGuide';
 import { AttachedFilesDisplay } from '@/components/chat';
 import type { AttachedFileItem } from '@/components/chat';
 import { useProject, UploadedFile } from '@/contexts/ProjectContext';
@@ -96,8 +97,8 @@ export default function Home() {
               </div>
               <span className="text-xl font-bold text-gray-900 dark:text-white">Qwen Coder</span>
             </div>
-            <div className="flex items-center gap-3">
-              <ModelSelector />
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <div className="hidden sm:block"><ModelSelector /></div>
               <ModelConfigSettings />
               <LanguageSwitcher />
               <ThemeToggle />
@@ -116,7 +117,7 @@ export default function Home() {
           </div>
 
           {/* Main title */}
-          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight tracking-tight">
             {t('home.titlePrefix')}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500">
               {t('home.build')}
@@ -125,7 +126,7 @@ export default function Home() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto px-2">
             {t('home.subtitle')}
           </p>
 
@@ -175,7 +176,7 @@ export default function Home() {
           </div>
 
           {/* Quick Start Templates */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-8 opacity-80">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-8 opacity-80 px-2">
             <button 
               disabled={!isLoaded || !!isLoadingTemplate}
               onClick={() => {
@@ -219,6 +220,9 @@ export default function Home() {
 
       {/* Chat History Sidebar */}
       <ChatHistorySidebar />
+
+      {/* Onboarding Guide for new users */}
+      <OnboardingGuide />
 
       {/* Bottom decoration */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/10 to-transparent" />

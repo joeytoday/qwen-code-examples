@@ -46,8 +46,8 @@ export function ViewModeToggle({ viewMode, onViewModeChange }: ViewModeTogglePro
           </button>
         </Tooltip>
       </div>
-      <div className="flex items-center gap-2">
-        <EditorSettings />
+      <div className="flex items-center gap-1 sm:gap-2">
+        <div className="hidden sm:block"><EditorSettings /></div>
         <LanguageSwitcher />
         <ThemeToggle />
       </div>

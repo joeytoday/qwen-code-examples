@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import logger from '@/lib/logger';
 
 interface EditorSettings {
   fontSize: number;
@@ -34,7 +35,7 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       try {
         setSettings(JSON.parse(stored));
       } catch (e) {
-        console.error('Failed to parse editor settings:', e);
+        logger.error('Failed to parse editor settings:', e);
       }
     }
   }, []);

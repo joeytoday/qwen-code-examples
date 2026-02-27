@@ -3,6 +3,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { readdir, readFile, stat } from 'fs/promises';
 import JSZip from 'jszip';
+import logger from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +34,7 @@ async function getAllFiles(dirPath: string, baseDir: string = dirPath): Promise<
       }
     }
   } catch (error) {
-    console.error(`[Download API] Error reading directory ${dirPath}:`, error);
+    logger.error(`[Download API] Error reading directory ${dirPath}:`, error);
   }
   
   return files;
@@ -51,7 +52,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[Download API] Creating zip for session:', sessionId);
 
     // Get workspace directory
     const workspaceDir = join(tmpdir(), 'qwen-bolt', sessionId);
@@ -76,7 +76,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`[Download API] Found ${files.length} files to zip`);
 
     // Create ZIP file
     const zip = new JSZip();
@@ -92,7 +91,6 @@ export async function GET(request: NextRequest) {
       compressionOptions: { level: 9 },
     });
 
-    console.log(`[Download API] Generated zip file, size: ${zipBlob.size} bytes`);
 
     // Return ZIP file
     return new NextResponse(zipBlob, {
@@ -103,7 +101,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Download API] Error creating zip:', error);
+    logger.error('[Download API] Error creating zip:', error);
     return NextResponse.json(
       { error: 'Failed to create zip file', message: error instanceof Error ? error.message : String(error) },
       { status: 500 }

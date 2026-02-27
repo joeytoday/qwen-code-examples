@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
+import { WorkspaceSkeleton } from '@/components/ui/Skeleton';
 import { useSearchParams } from 'next/navigation';
 import { useProject } from '@/contexts/ProjectContext';
 import { TerminalPanel } from '@/components/TerminalPanel';
@@ -20,7 +21,8 @@ import {
 } from '@/components/workspace';
 import { ChatPanel } from '@/components/chat';
 import { downloadProjectAsZip } from '@/lib/file-utils';
-import logger from '@/lib/logger';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { showToast } from '@/hooks/useToast';
 
 function WorkspaceContent() {
   const searchParams = useSearchParams();
@@ -66,12 +68,10 @@ function WorkspaceContent() {
     setSessionId,
     loadAllFiles,
     onFileUpdate: (path, content) => {
-        logger.debug('[Workspace] Streamed file update:', path);
         updateFile(path, content);
     },
-    files, // Pass current files state
+    files,
     onFilesLoaded: (loadedFiles) => {
-       logger.debug('[Workspace] Restoring files from history');
        setFiles(loadedFiles);
     }
   });
@@ -123,6 +123,37 @@ function WorkspaceContent() {
   const hasInitializedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: '1',
+      ctrlOrMeta: true,
+      action: () => setViewMode('code'),
+      description: 'Switch to code view',
+    },
+    {
+      key: '2',
+      ctrlOrMeta: true,
+      action: () => setViewMode('preview'),
+      description: 'Switch to preview view',
+    },
+    {
+      key: 's',
+      ctrlOrMeta: true,
+      action: () => {
+        downloadProjectAsZip(files);
+        showToast('Project downloaded', 'success');
+      },
+      description: 'Download project',
+    },
+    {
+      key: 'j',
+      ctrlOrMeta: true,
+      action: () => setIsTerminalOpen(prev => !prev),
+      description: 'Toggle terminal',
+    },
+  ]);
+
   // Cleanup: Stop dev server when component unmounts
   // With WebContainer, the browser manages the lifecycle, so explicit server-side cleanup is less critical for the runtime,
   // but we might still want to clean up the session folder on the backend if needed.
@@ -150,8 +181,6 @@ function WorkspaceContent() {
           folderName: f.folderName || (f.type === 'folder' ? f.path.split('/')[0] : undefined)
         }));
         
-        logger.debug('[Workspace] Restoring attached files from Home:', filesToAttach);
-
         // Write files to the code panel so they are visible immediately
         filesToAttach.forEach(file => {
           if (file.content) {
@@ -163,13 +192,11 @@ function WorkspaceContent() {
 
         // Send message with restored files directly to avoid state timing issues
         hasInitializedRef.current = true;
-        logger.debug('[Workspace] Sending initial prompt with restored files:', settings.modelConfig);
         sendMessage(initialPrompt, filesToAttach);
         return;
       }
 
       hasInitializedRef.current = true;
-      logger.debug('[Workspace] Sending initial prompt with loaded settings:', settings.modelConfig);
       sendMessage(initialPrompt);
     }
   }, [initialPrompt, messages.length, sendMessage, isLoaded, settings, setAttachedFiles, clearAllFiles]);
@@ -182,15 +209,6 @@ function WorkspaceContent() {
   const handleOpenInNewTab = () => {
     window.open(previewUrl, '_blank');
   };
-
-  logger.debug('[Workspace Debug]', {
-    sessionId,
-    filesCount: Object.keys(files).length,
-    previewUrl,
-    devServer,
-    isStartingServer,
-    serverError,
-  });
 
   return (
     <div className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-white relative transition-colors">
@@ -247,25 +265,20 @@ function WorkspaceContent() {
                 sessionId={sessionId}
                 isLoading={isLoading}
                 onSelectFile={setActiveFile}
-                onCodeChange={(code, filename) => logger.debug('Code changed:', filename)}
+                onCodeChange={() => {}}
                 onSaveFile={(path, content) => {
-                  logger.debug('[Workspace] Saving file:', path);
                   updateFile(path, content);
                 }}
                 onCreateFile={(path, content) => {
-                  logger.debug('[Workspace] Creating file:', path);
                   updateFile(path, content);
                 }}
                 onCreateFolder={(path) => {
-                  logger.debug('[Workspace] Creating folder:', path);
                   createFolder(path);
                 }}
                 onDeleteFile={(path) => {
-                  logger.debug('[Workspace] Deleting:', path);
                   deleteFile(path);
                 }}
                 onRenameFile={(oldPath, newPath) => {
-                  logger.debug('[Workspace] Renaming:', oldPath, '→', newPath);
                   renameFile(oldPath, newPath);
                 }}
               />
@@ -327,7 +340,7 @@ function WorkspaceContent() {
 
 export default function WorkspacePage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-black flex items-center justify-center text-white">Loading...</div>}>
+    <Suspense fallback={<WorkspaceSkeleton />}>
       <WorkspaceContent />
     </Suspense>
   );

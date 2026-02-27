@@ -4,6 +4,7 @@ import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import logger from '@/lib/logger';
 
 // Global listeners for SDK logs
 const logListeners = new Set<(msg: string) => void>();
@@ -26,17 +27,16 @@ if (!(global as any).__qwen_log_hook_installed) {
 
   process.stdout.write = hookWrite(process.stdout.write);
   process.stderr.write = hookWrite(process.stderr.write);
-  console.log('[Chat API] Global stdout/stderr hooks installed');
 }
 
-// Configure SdkLogger for structured logs
+// Configure SdkLogger to suppress verbose SDK internal logs (e.g. file content writes)
 try {
   SdkLogger.configure({
-    logLevel: 'debug',
+    logLevel: 'warn',
     stderr: () => {}
   });
 } catch (e) {
-  console.warn('[Chat API] Failed to configure SdkLogger:', e);
+  logger.warn('[Chat API] Failed to configure SdkLogger:', e);
 }
 import { randomUUID } from 'crypto';
 import { getSystemInstructions, buildUserMessage } from '@/lib/prompt-builder';
@@ -47,7 +47,6 @@ export const runtime = 'nodejs';
 function createSessionWorkspace(sessionId: string): string {
   const workspaceDir = path.join(os.tmpdir(), 'qwen-bolt', sessionId);
   fs.mkdirSync(workspaceDir, { recursive: true });
-  console.log('[Chat API] Created workspace:', workspaceDir);
   return workspaceDir;
 }
 
@@ -114,10 +113,9 @@ function watchWorkspace(
       }
     });
     
-    console.log('[Chat API] File watcher started for:', workspaceDir);
     return watcher;
   } catch (error) {
-    console.warn('[Chat API] Failed to start file watcher:', error);
+    logger.warn('[Chat API] Failed to start file watcher:', error);
     return null;
   }
 }
@@ -126,9 +124,8 @@ function watchWorkspace(
 function cleanupWorkspace(workspaceDir: string) {
   try {
     fs.rmSync(workspaceDir, { recursive: true, force: true });
-    console.log('[Chat API] Cleaned up workspace:', workspaceDir);
   } catch (error) {
-    console.warn('[Chat API] Failed to cleanup workspace:', error);
+    logger.warn('[Chat API] Failed to cleanup workspace:', error);
   }
 }
 
@@ -193,7 +190,6 @@ function createFileSystemServer(sessionId: string, workspaceDir: string, streamC
              // Store in memory for subsequent replace operations
              fileStore.set(targetPath, content);
              
-             console.log(`[local-fs] write_file: ${targetPath}`);
 
              // Push file_write event to frontend via SSE
              // (fs.watch will also fire, but explicit push ensures immediate delivery)
@@ -211,7 +207,7 @@ function createFileSystemServer(sessionId: string, workspaceDir: string, streamC
                content: [{ type: 'text', text: `Successfully wrote file: ${targetPath}` }]
              };
           } catch (e: any) {
-             console.error('[local-fs] Error writing file:', e);
+             logger.error('[local-fs] Error writing file:', e);
              return {
                 isError: true,
                 content: [{ type: 'text', text: `Error writing file: ${e.message}` }]
@@ -350,12 +346,9 @@ export async function POST(request: NextRequest) {
     const frontendAuthType = modelConfig?.authType || 'qwen-oauth';
     const sdkAuthType = frontendAuthType === 'openai-api-key' ? 'openai' : 'qwen-oauth';
     
-    console.log('[Chat API] Configuration:', { frontendAuthType, sdkAuthType, modelConfig });
 
     const queryOptions: any = {
       includePartialMessages: true,
-      debug: true,
-      logLevel: 'debug',
       authType: sdkAuthType,
       cwd: workspaceDir,
     };
@@ -434,12 +427,12 @@ export async function POST(request: NextRequest) {
             try {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
             } catch (msgError) {
-              console.error('[API /api/chat] Error processing message:', msgError);
+              logger.error('[API /api/chat] Error processing message:', msgError);
             }
           }
           
         } catch (error) {
-          console.error('[API /api/chat] Error streaming query:', error);
+          logger.error('[API /api/chat] Error streaming query:', error);
           
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
@@ -448,7 +441,7 @@ export async function POST(request: NextRequest) {
               message: error instanceof Error ? error.message : String(error),
             })}\n\n`));
           } catch (encodeError) {
-            console.error('[API /api/chat] Error encoding error message:', encodeError);
+            logger.error('[API /api/chat] Error encoding error message:', encodeError);
           }
         } finally {
           logListeners.delete(logListener);
@@ -499,7 +492,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error in chat endpoint:', error);
+    logger.error('Error in chat endpoint:', error);
     return new Response(
       JSON.stringify({
         error: 'Failed to process chat message',

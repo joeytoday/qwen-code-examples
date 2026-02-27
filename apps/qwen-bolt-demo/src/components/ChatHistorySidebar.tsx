@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { MessageSquare, Trash2, User, Plus, Search, PanelLeftClose, X, Check } from 'lucide-react';
 import { getAllChatSessions, deleteChatSession, deleteAllChatSessions, type ChatSession } from '@/lib/chat-persistence';
+import logger from '@/lib/logger';
 
 interface TimeGroup {
   label: string;
@@ -77,7 +78,7 @@ export function ChatHistorySidebar() {
       const sessions = await getAllChatSessions();
       setHistory(sessions);
     } catch (e) {
-      console.error('Failed to load history:', e);
+      logger.error('Failed to load history:', e);
     }
   };
 

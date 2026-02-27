@@ -61,7 +61,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        logger.debug('[ProjectContext] Loading settings from localStorage:', stored);
         const parsed = JSON.parse(stored);
         // Merge with default settings to ensure new fields are present
         setSettings(prev => ({
@@ -70,7 +69,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             modelConfig: { ...prev.modelConfig, ...parsed.modelConfig }
         }));
       } catch (e) {
-        console.error('Failed to parse project settings:', e);
+        logger.error('Failed to parse project settings:', e);
       }
     }
     setIsLoaded(true);
@@ -107,15 +106,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateModelConfig = useCallback((config: Partial<ModelConfig>) => {
-    logger.debug('[ProjectContext] updateModelConfig called with:', config);
-    setSettings(prev => {
-      const newSettings = {
-        ...prev,
-        modelConfig: { ...prev.modelConfig, ...config },
-      };
-      logger.debug('[ProjectContext] New settings:', newSettings);
-      return newSettings;
-    });
+    setSettings(prev => ({
+      ...prev,
+      modelConfig: { ...prev.modelConfig, ...config },
+    }));
   }, []);
 
   const resetSettings = useCallback(() => {

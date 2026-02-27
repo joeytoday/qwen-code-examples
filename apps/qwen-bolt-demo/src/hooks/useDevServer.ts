@@ -164,13 +164,12 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
       if (fileCount === lastMountedFilesCountRef.current) return;
 
       try {
-        logger.debug('[DevServer] Mounting files to WebContainer FS:', fileCount, '(was:', lastMountedFilesCountRef.current, ')');
         const tree = convertFilesToTree(files);
         await webcontainer.mount(tree);
         lastMountedFilesCountRef.current = fileCount;
         setDevServerLogs(prev => [...prev, `[System] File system synced (${fileCount} files).`]);
       } catch (error) {
-        console.error('[DevServer] Failed to mount files:', error);
+        logger.error('[DevServer] Failed to mount files:', error);
       }
     }
 
@@ -199,10 +198,9 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
         await webcontainer.fs.writeFile('.env', 'HOST=0.0.0.0\n');
         
         npmrcWrittenRef.current = true;
-        logger.debug('[DevServer] .npmrc and .env written to WebContainer');
         setDevServerLogs(prev => [...prev, '[System] npm mirror and host binding configured.']);
       } catch (error) {
-        console.warn('[DevServer] Failed to write config files:', error);
+        logger.warn('[DevServer] Failed to write config files:', error);
       }
     }
     
@@ -214,7 +212,6 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
     if (!webcontainer) return;
 
     const handleServerReady = (port: number, url: string) => {
-      logger.debug('[DevServer] Server Ready:', url);
       setPreviewUrl(url);
       setDevServer({
         port,
@@ -241,13 +238,12 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
     try {
       const fileCount = Object.keys(files).length;
       if (fileCount > 0) {
-        logger.debug('[DevServer] Pre-start mount: syncing', fileCount, 'files to WebContainer FS');
         const tree = convertFilesToTree(files);
         await webcontainer.mount(tree);
         lastMountedFilesCountRef.current = fileCount;
       }
     } catch (mountError) {
-      console.error('[DevServer] Pre-start mount failed:', mountError);
+      logger.error('[DevServer] Pre-start mount failed:', mountError);
     }
 
     try {
@@ -270,7 +266,7 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
                   devScript = 'npm start';
               }
           } catch (parseError) {
-              console.warn('[DevServer] Failed to parse package.json:', parseError);
+              logger.warn('[DevServer] Failed to parse package.json:', parseError);
           }
 
           // Dispatch install + dev command to the terminal shell
@@ -285,7 +281,6 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
           const dispatchCommand = () => {
             if (dispatched) return;
             dispatched = true;
-            logger.debug('[DevServer] Dispatching command:', command);
             window.dispatchEvent(new CustomEvent('bolt:run-command', { 
               detail: { command } 
             }));
@@ -313,7 +308,7 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
       }
 
     } catch (error: any) {
-      console.error('[DevServer] Error:', error);
+      logger.error('[DevServer] Error:', error);
       setServerError(error.message);
       setIsStartingServer(false);
     }
@@ -336,7 +331,6 @@ export function useDevServer(sessionId: string, files: Record<string, string>, i
 
     if (!hasPackageJson) return;
 
-        logger.debug('[DevServer] Auto-start: WebContainer ready + files available + chat idle, starting dev server...');
     hasAutoStartedRef.current = true;
     startDevServer();
   }, [webcontainer, isWebContainerLoading, files, isStartingServer, startDevServer, isChatLoading]);

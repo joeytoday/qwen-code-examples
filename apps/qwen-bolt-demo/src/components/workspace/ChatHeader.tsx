@@ -6,6 +6,7 @@ import { ContextSettings } from '@/components/ContextSettings';
 import { ModelConfigSettings } from '@/components/ModelConfigSettings';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from 'react-i18next';
+import { showToast } from '@/hooks/useToast';
 
 interface ChatHeaderProps {
   onDownloadProject?: () => void;
@@ -27,7 +28,10 @@ export function ChatHeader({ onDownloadProject }: ChatHeaderProps) {
           {onDownloadProject && (
             <Tooltip content={t('chat.downloadProject')} side="bottom">
               <button
-                onClick={onDownloadProject}
+                onClick={() => {
+                  onDownloadProject?.();
+                  showToast('Project download started', 'success');
+                }}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium transition-colors"
               >
                 <Download className="w-4 h-4" />

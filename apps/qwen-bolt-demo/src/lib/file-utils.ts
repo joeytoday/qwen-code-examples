@@ -1,5 +1,6 @@
 import { FileSystemTree, DirectoryNode } from '@webcontainer/api';
 import JSZip from 'jszip';
+import logger from '@/lib/logger';
 
 export async function downloadProjectAsZip(files: Record<string, string>, projectName = 'project') {
   const zip = new JSZip();
@@ -83,7 +84,7 @@ export function convertFilesToTree(files: Record<string, string>): FileSystemTre
           currentLevel = node.directory;
         } else {
           // Path conflict: trying to use a file name as a folder name
-          console.warn(`[FileTree] Path conflict at ${part} for ${path}. Skipping.`);
+          logger.warn(`[FileTree] Path conflict at ${part} for ${path}. Skipping.`);
           break;
         }
       }

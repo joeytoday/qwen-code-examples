@@ -24,9 +24,8 @@ export function useFiles(initialSessionId: string = '') {
                   await webcontainer.fs.mkdir(dir, { recursive: true });
               }
               await webcontainer.fs.writeFile(cleanPath, content);
-              logger.debug('[useFiles] Wrote file to WebContainer:', cleanPath);
           } catch (err) {
-              console.error('[useFiles] Failed to write file to WebContainer:', cleanPath, err);
+              logger.error('[useFiles] Failed to write file to WebContainer:', cleanPath, err);
           }
       }
   }, [webcontainer]);
@@ -65,28 +64,26 @@ export function useFiles(initialSessionId: string = '') {
             const content = await webcontainer.fs.readFile(entryPath, 'utf-8');
             result[entryPath] = content;
           } catch (readErr) {
-            console.warn('[useFiles] Failed to read file:', entryPath, readErr);
+            logger.warn('[useFiles] Failed to read file:', entryPath, readErr);
           }
         }
       }
     } catch (err) {
-      console.error('[useFiles] Failed to read directory:', dirPath, err);
+      logger.error('[useFiles] Failed to read directory:', dirPath, err);
     }
   }, [webcontainer]);
 
   // Load all files from WebContainer FS (replaces old /api/files backend call)
   const loadAllFiles = useCallback(async (_sessionId?: string) => {
     if (!webcontainer) {
-      console.warn('[useFiles] WebContainer not ready, skipping loadAllFiles');
+      logger.warn('[useFiles] WebContainer not ready, skipping loadAllFiles');
       return;
     }
 
-    logger.debug('[useFiles] Loading all files from WebContainer FS...');
     const fileContents: Record<string, string> = {};
     await readDirectoryRecursive('', fileContents);
 
     const filePaths = Object.keys(fileContents);
-    logger.debug('[useFiles] Loaded', filePaths.length, 'files from WebContainer FS');
 
     setFiles(fileContents);
 
@@ -125,9 +122,8 @@ export function useFiles(initialSessionId: string = '') {
     if (webcontainer) {
       try {
         await webcontainer.fs.rm(cleanPath, { recursive: true });
-        logger.debug('[useFiles] Deleted from WebContainer:', cleanPath);
       } catch (err) {
-        console.error('[useFiles] Failed to delete from WebContainer:', cleanPath, err);
+        logger.error('[useFiles] Failed to delete from WebContainer:', cleanPath, err);
       }
     }
   }, [webcontainer]);
@@ -197,9 +193,8 @@ export function useFiles(initialSessionId: string = '') {
           await webcontainer.fs.writeFile(cleanNewPath, content);
         }
         await webcontainer.fs.rm(cleanOldPath, { recursive: true });
-        logger.debug('[useFiles] Renamed in WebContainer:', cleanOldPath, '→', cleanNewPath);
       } catch (err) {
-        console.error('[useFiles] Failed to rename in WebContainer:', err);
+        logger.error('[useFiles] Failed to rename in WebContainer:', err);
       }
     }
   }, [webcontainer]);
@@ -214,9 +209,8 @@ export function useFiles(initialSessionId: string = '') {
     if (webcontainer) {
       try {
         await webcontainer.fs.mkdir(cleanPath, { recursive: true });
-        logger.debug('[useFiles] Created folder in WebContainer:', cleanPath);
       } catch (err) {
-        console.error('[useFiles] Failed to create folder in WebContainer:', cleanPath, err);
+        logger.error('[useFiles] Failed to create folder in WebContainer:', cleanPath, err);
       }
     }
   }, [webcontainer]);

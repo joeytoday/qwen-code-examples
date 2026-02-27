@@ -1,3 +1,5 @@
+import logger from '@/lib/logger';
+
 export interface ChatSession {
   id: string;
   title: string;
@@ -16,7 +18,7 @@ export const openDB = (): Promise<IDBDatabase> => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = (event) => {
-      console.error('IndexedDB error:', event);
+      logger.error('IndexedDB error:', event);
       reject('Error opening database');
     };
 

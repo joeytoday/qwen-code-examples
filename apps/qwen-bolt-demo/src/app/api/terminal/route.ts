@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import logger from '@/lib/logger';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Terminal API] Error:', error);
+    logger.error('[Terminal API] Error:', error);
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : String(error),

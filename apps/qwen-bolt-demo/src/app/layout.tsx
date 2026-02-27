@@ -6,13 +6,32 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { EditorProvider } from "@/contexts/EditorContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { I18nProvider } from "@/components/I18nProvider";
+import { ToastContainer } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Qwen Coder - AI Code Studio",
-  description: "Create stunning apps & websites by chatting with AI",
+  description: "Create stunning apps & websites by chatting with AI. Powered by Qwen Code SDK.",
+  keywords: ["AI", "code generation", "Qwen", "web development", "app builder", "AI coding assistant"],
+  authors: [{ name: "Qwen Code Team" }],
   icons: {
     icon: '/favicon.svg',
     apple: '/icon-512.svg',
+  },
+  openGraph: {
+    title: "Qwen Coder - AI Code Studio",
+    description: "Create stunning apps & websites by chatting with AI. Powered by Qwen Code SDK.",
+    type: "website",
+    siteName: "Qwen Coder",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Qwen Coder - AI Code Studio",
+    description: "Create stunning apps & websites by chatting with AI. Powered by Qwen Code SDK.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -36,6 +55,7 @@ export default function RootLayout({
                 <ProjectProvider>
                   <I18nProvider>
                     {children}
+                    <ToastContainer />
                   </I18nProvider>
                 </ProjectProvider>
               </EditorProvider>

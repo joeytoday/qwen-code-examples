@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import logger from '@/lib/logger';
 
 export const runtime = 'nodejs';
 
@@ -180,7 +181,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error in preview endpoint:', error);
+    logger.error('Error in preview endpoint:', error);
     
     const errorHtml = `
 <!DOCTYPE html>
