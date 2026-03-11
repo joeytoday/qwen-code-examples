@@ -1,8 +1,7 @@
 import { query, type SDKMessage, type PermissionResult } from "@qwen-code/sdk";
 import type { ServerEvent } from "../types.js";
 import type { Session } from "./session-store.js";
-import { qwenCodePath, getEnhancedEnv} from "./util.js";
-
+import { qwenCodePath, getEnhancedEnv } from "./util.js";
 
 export type RunnerOptions = {
   prompt: string;
@@ -18,22 +17,26 @@ export type RunnerHandle = {
 
 const DEFAULT_CWD = process.cwd();
 
-
 export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
-  const { prompt, session, resumeSessionId, onEvent, onSessionUpdate } = options;
+  const { prompt, session, resumeSessionId, onEvent, onSessionUpdate } =
+    options;
   const abortController = new AbortController();
 
   const sendMessage = (message: SDKMessage) => {
     onEvent({
       type: "stream.message",
-      payload: { sessionId: session.id, message }
+      payload: { sessionId: session.id, message },
     });
   };
 
-  const sendPermissionRequest = (toolUseId: string, toolName: string, input: unknown) => {
+  const sendPermissionRequest = (
+    toolUseId: string,
+    toolName: string,
+    input: unknown,
+  ) => {
     onEvent({
       type: "permission.request",
-      payload: { sessionId: session.id, toolUseId, toolName, input }
+      payload: { sessionId: session.id, toolUseId, toolName, input },
     });
   };
 
@@ -44,12 +47,12 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
         prompt,
         options: {
           cwd: session.cwd ?? DEFAULT_CWD,
-          // resume: resumeSessionId, // qwen-code/sdk 暂不支持会话恢复
+          resume: resumeSessionId,
           abortController,
           env: getEnhancedEnv(), // Get latest env with API config
-          pathToQwenExecutable: qwenCodePath,
-          authType: 'openai',  // Use OpenAI-compatible API authentication
-          permissionMode: "yolo",  // 自动批准所有工具调用
+          //pathToQwenExecutable: qwenCodePath,
+          // authType: "openai", // Or qwen-oauth if you have logged in with qwen-oauth
+          permissionMode: "yolo", // 自动批准所有工具调用
           includePartialMessages: true,
           canUseTool: async (toolName, input, { signal }) => {
             // For AskUserQuestion, we need to wait for user response
@@ -68,7 +71,7 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
                   resolve: (result) => {
                     session.pendingPermissions.delete(toolUseId);
                     resolve(result as PermissionResult);
-                  }
+                  },
                 });
 
                 // Handle abort
@@ -81,14 +84,18 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
 
             // Auto-approve other tools
             return { behavior: "allow", updatedInput: input };
-          }
-        }
+          },
+        },
       });
 
       // Capture session_id from init message
       for await (const message of q) {
         // Extract session_id from system init message
-        if (message.type === "system" && "subtype" in message && message.subtype === "init") {
+        if (
+          message.type === "system" &&
+          "subtype" in message &&
+          message.subtype === "init"
+        ) {
           const sdkSessionId = message.session_id;
           if (sdkSessionId) {
             session.claudeSessionId = sdkSessionId;
@@ -104,7 +111,7 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
           const status = message.subtype === "success" ? "completed" : "error";
           onEvent({
             type: "session.status",
-            payload: { sessionId: session.id, status, title: session.title }
+            payload: { sessionId: session.id, status, title: session.title },
           });
         }
       }
@@ -113,7 +120,11 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
       if (session.status === "running") {
         onEvent({
           type: "session.status",
-          payload: { sessionId: session.id, status: "completed", title: session.title }
+          payload: {
+            sessionId: session.id,
+            status: "completed",
+            title: session.title,
+          },
         });
       }
     } catch (error) {
@@ -123,12 +134,17 @@ export async function runClaude(options: RunnerOptions): Promise<RunnerHandle> {
       }
       onEvent({
         type: "session.status",
-        payload: { sessionId: session.id, status: "error", title: session.title, error: String(error) }
+        payload: {
+          sessionId: session.id,
+          status: "error",
+          title: session.title,
+          error: String(error),
+        },
       });
     }
   })();
 
   return {
-    abort: () => abortController.abort()
+    abort: () => abortController.abort(),
   };
 }
