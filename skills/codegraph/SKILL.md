@@ -1,11 +1,11 @@
 ---
 name: codegraph-qa
-description: Use CodeScope to analyze any indexed codebase via its graph database (neug) and vector index (zvec). Covers call graphs, dependency analysis, dead code detection, hotspots, module coupling, architectural layering, commit history, change attribution, semantic code search, impact analysis, and full architecture reports. Use this skill whenever the user asks about code structure, code dependencies, who calls what, why something changed, finding similar functions, generating architecture reports, understanding module boundaries, or any question that benefits from a code knowledge graph — even if they don't mention "CodeScope" by name. If a `.codegraph` or similar index directory exists in the workspace, this skill applies.
+description: Use CodeScope to analyze any indexed codebase via its graph database (neug) and vector index (zvec). Supports Python, JavaScript/TypeScript, C, and Java (including Hadoop-scale repositories). Covers call graphs, dependency analysis, dead code detection, hotspots, module coupling, architectural layering, commit history, change attribution, semantic code search, impact analysis, full architecture reports, and bug root cause analysis from GitHub issues. Use this skill whenever the user asks about code structure, code dependencies, who calls what, why something changed, finding similar functions, generating architecture reports, understanding module boundaries, analyzing GitHub issues/bugs, finding bug root causes, understanding why a project has many bugs, tracing bugs to code, indexing Java projects, or any question that benefits from a code knowledge graph — even if they don't mention "CodeScope" by name. If a `.codegraph` or similar index directory exists in the workspace, this skill applies.
 ---
 
 # CodeScope Q&A
 
-CodeScope indexes source code into a two-layer knowledge graph — **structure** (functions, calls, imports, classes, modules) and **evolution** (commits, file changes, function modifications) — plus **semantic embeddings** for every function. This combination enables analyses that grep, LSP, or pure vector search cannot do alone.
+CodeScope indexes source code into a two-layer knowledge graph — **structure** (functions, calls, imports, classes, modules) and **evolution** (commits, file changes, function modifications) — plus **semantic embeddings** for every function. Supports **Python, JavaScript/TypeScript, C, and Java** (including Hadoop-scale repositories with 8K+ files). This combination enables analyses that grep, LSP, or pure vector search cannot do alone. It can also **fetch GitHub issues and trace bugs to code** — mapping bug reports to root cause candidates using the graph + vector infrastructure.
 
 ## When to Use This Skill
 
@@ -15,6 +15,10 @@ CodeScope indexes source code into a two-layer knowledge graph — **structure**
 - User wants to find semantically similar functions across a codebase
 - User wants a full architecture analysis or report
 - User asks about module coupling, circular dependencies, or bridge functions
+- User wants to index or analyze a Java project (Maven, Gradle, plain Java)
+- User wants to analyze GitHub issues or bug reports to find root causes
+- User asks "why does this project have so many bugs" or "what code is most buggy"
+- User wants to trace a bug report to the most relevant code locations
 - A `.codegraph` directory (or similar index) exists in the workspace
 
 ## Getting Started
@@ -51,6 +55,8 @@ If no index exists, create one:
 ```bash
 codegraph init --repo . --lang auto --commits 500
 ```
+
+Supported languages: `python`, `c`, `javascript`, `typescript`, `java`, or `auto` (auto-detects from file extensions).
 
 The `--commits` flag ingests git history (for evolution queries). Without it, only structural analysis is available. Add `--backfill-limit 200` to also compute function-level `MODIFIES` edges (slower but enables `change_attribution` and `co_change`).
 
@@ -144,9 +150,179 @@ codegraph analyze --output reports/analysis.md
 
 The report covers: overview stats, subsystem distribution, top modules, architectural layers (with Mermaid diagrams), bridge functions, fan-in/fan-out hotspots, cross-module coupling, evolution hotspots, and dead code density.
 
+## Java Support
+
+CodeScope includes a full Java adapter that handles enterprise-scale repositories like Apache Hadoop (~8K files, ~97K functions indexed in ~3.5 minutes).
+
+### What Gets Indexed
+
+| Element | Graph Node/Edge | Notes |
+|---------|----------------|-------|
+| Classes | `Class` node | Includes generics, annotations |
+| Interfaces | `Class` node | `extends` → `INHERITS` edge |
+| Enums | `Class` node | Enum methods extracted |
+| Methods | `Function` node | Full generic signatures, JavaDoc |
+| Constructors | `Function` node (name=`<init>`) | Including `super()` calls |
+| Method calls | `CALLS` edge | Receiver context preserved (`obj.method()`) |
+| `new` expressions | `CALLS` edge to `ClassName.<init>` | Constructor invocations |
+| Imports | `IMPORTS` edge (file→file) | Single, wildcard, static |
+| Inner classes | `Class` node (name=`Outer.Inner`) | Prefixed with outer class |
+| Inheritance | `INHERITS` edge | `extends` + `implements` |
+
+### Indexing a Java Project
+
+```bash
+codegraph init --repo /path/to/java-project --lang java --commits 500
+```
+
+Or with auto-detection (auto-detects `.java` files):
+
+```bash
+codegraph init --repo /path/to/java-project --lang auto
+```
+
+### Java-Specific Exclusions
+
+By default, these directories are excluded when indexing Java projects: `target/`, `build/`, `.gradle/`, `.idea/`, `.settings/`, `bin/`, `out/`, `test/`, `tests/`, `src/test/`.
+
+### Java Query Examples
+
+```python
+# Find all classes that extend a specific class
+list(cs.conn.execute("""
+    MATCH (c:Class)-[:INHERITS]->(p:Class {name: 'FileSystem'})
+    RETURN c.name, c.file_path
+"""))
+
+# Find all methods in a specific class
+list(cs.conn.execute("""
+    MATCH (c:Class {name: 'DefaultParser'})-[:HAS_METHOD]->(f:Function)
+    RETURN f.name, f.signature
+"""))
+
+# Find constructor call chains
+list(cs.conn.execute("""
+    MATCH (f:Function)-[:CALLS]->(init:Function {name: '<init>'})
+    WHERE init.class_name = 'Configuration'
+    RETURN f.name, f.file_path LIMIT 10
+"""))
+```
+
+## Bug Root Cause Analysis
+
+CodeScope can fetch GitHub issues and map them to code using the graph + vector infrastructure. This is the core workflow for answering questions like "why does this project have so many bugs?" or "where in the code does this bug come from?"
+
+### Prerequisites
+
+- A code graph must already be indexed for the target repository
+- `gh` CLI must be installed and authenticated (`gh auth login`)
+
+### Bug Analysis API
+
+#### Single Issue Analysis
+
+```python
+# Analyze a specific GitHub issue against the indexed code graph
+result = cs.analyze_issue("owner", "repo", 1234, topk=10)
+print(result.format_report())
+```
+
+This:
+1. Fetches the issue from GitHub (or loads from cache)
+2. Parses file paths, function names, and stack traces from the issue body
+3. Matches extracted paths to File nodes in the graph
+4. Uses semantic search (`cross_locate`) to find related code
+5. Traces callers of mentioned functions via `impact()`
+6. Ranks and returns root cause candidates with explanation
+
+#### Batch Bug Analysis
+
+```python
+# Analyze top-k bug issues and get aggregated hotspot data
+results = cs.analyze_top_bugs("owner", "repo", k=10, label="bug")
+for r in results:
+    print(f"#{r.issue.number}: {r.issue.title}")
+    for c in r.candidates[:3]:
+        print(f"  {c.function_name} ({c.file_path}) score={c.score:.2f}")
+```
+
+#### CLI Commands
+
+```bash
+# Fetch and parse a single issue (no graph needed)
+codegraph fetch-issue owner repo 1234
+
+# Fetch top-k bugs from a repo
+codegraph fetch-bugs owner repo --top 10 --label bug
+
+# Analyze a single bug against the code graph
+codegraph analyze-bug owner repo 1234 --db .codegraph --topk 10
+
+# Batch analyze top bugs
+codegraph analyze-bugs owner repo --db .codegraph --top 10 --label bug
+```
+
+#### Lower-Level Components
+
+For custom analysis pipelines, the components can be used individually:
+
+```python
+from codegraph.issue_fetcher import fetch_and_parse_issue
+from codegraph.bug_locator import (
+    resolve_paths_to_files,
+    find_semantic_matches,
+    trace_callers,
+    rank_root_causes,
+    analyze_bug,
+)
+
+# Fetch and parse (with caching)
+issue = fetch_and_parse_issue("owner", "repo", 1234)
+print(issue.extracted_paths)   # file paths found in body
+print(issue.extracted_funcs)   # function names from stack traces
+print(issue.linked_commits)    # merge commit SHAs from linked PRs
+
+# Match paths to graph nodes
+path_matches = resolve_paths_to_files(cs, issue.extracted_paths)
+
+# Semantic search using issue description
+semantic_matches = find_semantic_matches(cs, f"{issue.title}\n{issue.body}")
+
+# Trace callers of mentioned functions
+caller_traces = trace_callers(cs, issue.extracted_funcs, max_hops=2)
+
+# Combine into ranked candidates
+candidates = rank_root_causes(path_matches, semantic_matches, caller_traces, issue.extracted_funcs)
+```
+
+### Scoring System
+
+Root cause candidates are scored by combining multiple signals:
+
+| Signal | Score | Description |
+|--------|-------|-------------|
+| Direct mention | +1.0 | Function name appears in issue body/stack trace |
+| File path match | +0.8 | Function is in a file mentioned in the issue |
+| Semantic match | +score | Raw cosine similarity (0.0-1.0) from `cross_locate` |
+| Caller relationship | +0.5/hops | Function calls a mentioned function (decays with distance) |
+
+### Issue Cache
+
+Parsed issues are cached at `~/.codegraph/issue_cache/{owner}_{repo}_{number}.json`. Cache hits skip the GitHub API call entirely (sub-millisecond). To force a refresh, pass `use_cache=False` or use `--no-cache` on CLI.
+
+```python
+from codegraph.issue_cache import clear_cache
+clear_cache(owner="openclaw", repo="openclaw")  # clear specific repo
+clear_cache()  # clear all
+```
+
+### Stack Trace Parsing
+
+The parser automatically extracts file paths and function names from stack traces in Python, C/C++, JavaScript/Node.js, Go, and Rust formats. It also extracts `func_name()` references in backticks and inline code.
+
 ## How to Route Questions
 
-The key decision is: **does the user want an exact structural answer, or a fuzzy semantic one?**
+The key decision is: **does the user want an exact structural answer, a fuzzy semantic one, or a bug-to-code mapping?**
 
 | User asks... | Best approach |
 |-------------|---------------|
@@ -161,8 +337,16 @@ The key decision is: **does the user want an exact structural answer, or a fuzzy
 | "Which functions act as API boundaries?" | `cs.bridge_functions(topk=30)` |
 | "Find commits about fixing race conditions" | `cs.intent_search("fix race condition")` |
 | "What functions are always changed together with `kmalloc`?" | `cs.co_change("kmalloc")` |
+| "Why does this project have so many bugs?" | `cs.analyze_top_bugs("owner", "repo", k=10)` then aggregate hotspots |
+| "Analyze issue #1234 from GitHub" | `cs.analyze_issue("owner", "repo", 1234)` |
+| "What code is related to this bug?" | `cs.analyze_issue(...)` or manual `cross_locate(bug_description)` |
+| "Find the root cause of the crash in issue #42" | `cs.analyze_issue("owner", "repo", 42)` |
+| "Which modules have the most bugs?" | `cs.analyze_top_bugs(...)` then aggregate by file/module |
+| "Index this Java project" | `codegraph init --repo . --lang java` |
+| "What classes extend FileSystem in Hadoop?" | Cypher: `MATCH (c:Class)-[:INHERITS]->(p:Class {name: 'FileSystem'}) RETURN c.name, c.file_path` |
+| "Find all constructors called in this module" | Cypher: `MATCH (f:Function)-[:CALLS]->(init:Function {name: '<init>'}) WHERE f.file_path CONTAINS 'module' RETURN ...` |
 
-For **novel investigations** not covered by pre-built methods, compose raw Cypher queries. See [patterns.md](./patterns.md) for templates.
+For **novel investigations** not covered by pre-built methods, compose raw Cypher queries. See [patterns.md](./patterns.md) for templates. For bug analysis patterns, see [bug-analysis.md](./bug-analysis.md).
 
 ## Important Filters for Cypher
 
@@ -202,3 +386,4 @@ The CLI auto-cleans lock issues on startup when possible.
 
 - **[schema.md](./schema.md)** — Full graph schema: node types, edge types, properties, Cypher syntax notes
 - **[patterns.md](./patterns.md)** — Ready-to-use Cypher query templates and composition strategies
+- **[bug-analysis.md](./bug-analysis.md)** — Bug analysis workflows: single issue, batch analysis, hotspot aggregation, custom pipelines

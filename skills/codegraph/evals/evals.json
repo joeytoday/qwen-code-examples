@@ -1,22 +1,22 @@
 {
-  "skill_name": "codescope-qa",
+  "skill_name": "codegraph-qa",
   "evals": [
     {
       "id": 1,
-      "prompt": "我想了解一下这个 Linux 内核代码库里面，哪些函数被调用次数最多？它们分布在哪些子系统里？",
-      "expected_output": "Should return a ranked list of high fan-in functions (like dev_err_probe, seq_printf, complete, free_irq) with their file paths, and group or comment on which subsystems they belong to.",
+      "prompt": "I have pallets/click indexed in my .codegraph database. There's a bug report on GitHub — issue #3185 — about flag_value not working. Can you analyze it and find what code is most likely the root cause?",
+      "expected_output": "Should use cs.analyze_issue('pallets', 'click', 3185) and return root cause candidates related to flag_value/option processing in click's core code",
       "files": []
     },
     {
       "id": 2,
-      "prompt": "Can you find out which modules in the kernel are most tightly coupled? I want to understand the dependency structure between subsystems.",
-      "expected_output": "Should use module_coupling or a cross-module CALLS query to identify pairs of modules with the most inter-module call edges, potentially with a layer_discovery to show which are infrastructure vs consumer.",
+      "prompt": "openclaw seems to have a lot of bugs. I've indexed the openclaw repo. Can you fetch the top 5 bug issues and tell me which parts of the codebase are most problematic?",
+      "expected_output": "Should use cs.analyze_top_bugs('openclaw', 'openclaw', k=5) and provide an aggregated hotspot summary showing which modules/files appear across multiple bugs",
       "files": []
     },
     {
       "id": 3,
-      "prompt": "帮我查一下 schedule 这个函数最近被哪些 commit 修改过，以及它和哪些函数经常一起被修改",
-      "expected_output": "Should use change_attribution for schedule (with file_path kernel/sched/core.c) and co_change to find functions commonly modified alongside it. Should check backfill state first.",
+      "prompt": "I found a GitHub issue (openclaw/openclaw#43608) about cron tasks not executing even though the API returns success. The codebase is already indexed. Help me trace where the bug might be.",
+      "expected_output": "Should use cs.analyze_issue('openclaw', 'openclaw', 43608) and identify cron-related code (src/cron/, src/cli/cron-cli/) as root cause candidates",
       "files": []
     }
   ]
