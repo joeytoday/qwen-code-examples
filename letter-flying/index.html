@@ -192,11 +192,42 @@
       }
 
       function handleTypewriter() {
-        // TODO: Task 3
+        // Calculate which character we're on based on elapsed time
+        const elapsed = p.millis() - stateStartTime;
+        const totalChars = textLines.reduce((sum, line) => sum + line.chars.length, 0);
+        const charIndex = Math.floor(elapsed / TYPEWRITER_INTERVAL);
+
+        // Reveal characters up to current index
+        let revealed = 0;
+        for (let i = 0; i < textLines.length; i++) {
+          for (let j = 0; j < textLines[i].chars.length; j++) {
+            const ch = textLines[i].chars[j];
+            if (revealed <= charIndex && !ch.visible) {
+              ch.visible = true;
+              ch.popStart = p.millis(); // trigger pop-in animation
+            }
+            if (ch.visible) revealed++;
+          }
+        }
+
+        // Draw text block
+        drawTextBlock();
+
+        // Transition to pause when all characters are revealed
+        if (charIndex >= totalChars) {
+          transitionTo(STATE_PAUSE);
+        }
       }
 
       function handlePause() {
-        // TODO: Task 4
+        // Draw text block (all characters visible)
+        drawTextBlock();
+
+        // Wait for PAUSE_DURATION then transition to cascade
+        const elapsed = p.millis() - stateStartTime;
+        if (elapsed >= PAUSE_DURATION) {
+          transitionTo(STATE_CASCADE);
+        }
       }
 
       function handleCascade() {
