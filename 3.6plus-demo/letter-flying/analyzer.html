@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frame Analyzer</title>
+<style>
+  body { background: #111; color: #fff; font-family: monospace; padding: 20px; }
+  video { max-width: 360px; max-height: 540px; display: block; margin: 0 auto; }
+  .controls { text-align: center; margin: 20px 0; }
+  button { padding: 8px 16px; margin: 4px; cursor: pointer; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; }
+  button:hover { background: #555; }
+  #time { font-size: 24px; margin: 10px 0; }
+  canvas { border: 1px solid #333; margin: 10px auto; display: block; max-width: 360px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+  .frames img { width: 120px; border: 1px solid #333; }
+</style>
+</head>
+<body>
+<h2 style="text-align:center">Video Frame Analyzer</h2>
+<video id="vid" src="think-different-preview.mp4" preload="auto"></video>
+<div class="controls">
+  <div id="time">0.00s</div>
+  <button onclick="step(-0.5)">-0.5s</button>
+  <button onclick="step(-0.1)">-0.1s</button>
+  <button onclick="togglePlay()">Play/Pause</button>
+  <button onclick="step(0.1)">+0.1s</button>
+  <button onclick="step(0.5)">+0.5s</button>
+  <br>
+  <button onclick="captureFrame()">📸 Capture Current Frame</button>
+  <button onclick="captureAll()">📸 Capture All Key Moments</button>
+</div>
+<canvas id="cv"></canvas>
+<div class="frames" id="frames"></div>
+
+<script>
+const vid = document.getElementById('vid');
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const timeEl = document.getElementById('time');
+const framesDiv = document.getElementById('frames');
+
+vid.addEventListener('timeupdate', () => {
+  timeEl.textContent = vid.currentTime.toFixed(2) + 's';
+  drawFrame();
+});
+
+function drawFrame() {
+  cv.width = vid.videoWidth || 720;
+  cv.height = vid.videoHeight || 1080;
+  ctx.drawImage(vid, 0, 0);
+}
+
+function step(dt) {
+  vid.pause();
+  vid.currentTime = Math.max(0, Math.min(vid.duration, vid.currentTime + dt));
+  drawFrame();
+}
+
+function togglePlay() {
+  vid.paused ? vid.play() : vid.pause();
+}
+
+function captureFrame() {
+  const dataUrl = cv.toDataURL('image/jpeg', 0.9);
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.title = vid.currentTime.toFixed(2) + 's';
+  framesDiv.prepend(img);
+}
+
+function captureAll() {
+  vid.pause();
+  const times = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+  let i = 0;
+  function next() {
+    if (i >= times.length) return;
+    vid.currentTime = times[i];
+    vid.addEventListener('seeked', function handler() {
+      vid.removeEventListener('seeked', handler);
+      drawFrame();
+      const dataUrl = cv.toDataURL('image/jpeg', 0.9);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.title = times[i].toFixed(1) + 's';
+      framesDiv.appendChild(img);
+      i++;
+      next();
+    });
+  }
+  next();
+}
+
+// Keyboard controls
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') step(-0.1);
+  if (e.key === 'ArrowRight') step(0.1);
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'c') captureFrame();
+});
+</script>
+</body>
+</html>
