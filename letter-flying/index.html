@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Think Different</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overflow: hidden; background: #f4e8d1; }
+    #canvas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script>
+    // p5.js instance mode sketch
+    const sketch = (p) => {
+      // === CONSTANTS ===
+      const W = 720;
+      const H = 1080;
+      const TYPEWRITER_INTERVAL = 50;  // ms per character
+      const PAUSE_DURATION = 3000;     // 3s pause after typewriter
+      const O_CASCADE_INTERVAL = 300;  // ms between each "o" launch
+      const TRAIL_MAX = 60;            // max trail points per "o"
+
+      // === STATE MACHINE ===
+      const STATE_TYPEWRITER = 0;
+      const STATE_PAUSE = 1;
+      const STATE_CASCADE = 2;
+      const STATE_CLOSING = 3;
+
+      let currentState = STATE_TYPEWRITER;
+      let stateStartTime = 0;
+
+      // === TEXT DATA ===
+      const FULL_TEXT = [
+        "Here's to the crazy ones. The misfits. The rebels. The troublemakers.",
+        "The round pegs in the square holes. The ones who see things differently.",
+        "They're not fond of rules. And they have no respect for the status quo.",
+        "",
+        "You can quote them, disagree with them, glorify or vilify them.",
+        "About the only thing you can't do is ignore them.",
+        "Because they change things. They push the human race forward.",
+        "",
+        "And while some may see them as the crazy ones, we see genius.",
+        "Because the people who are crazy enough to think they can change the world,",
+        "are the ones who do."
+      ];
+
+      // === DATA STRUCTURES ===
+      let textLines = [];      // [{chars: [{char, x, y, visible, isO, popStart, popDuration}]}]
+      let oBalloons = [];      // [{originX, originY, currentX, currentY, scale, trailPoints, active, oIndex, startTime}]
+      let textOffsetY = 0;     // cumulative upward pull on text block
+      let font = null;         // loaded p5 font
+
+      // === CLOSING TEXT ===
+      let closingAlpha = 0;
+
+      p.setup = () => {
+        const canvas = p.createCanvas(W, H);
+        canvas.parent('canvas-container');
+        p.textFont('Special Elite');
+        stateStartTime = 0;
+      };
+
+      p.draw = () => {
+        // Background
+        drawParchmentBackground();
+
+        // State machine
+        if (currentState === STATE_TYPEWRITER) {
+          handleTypewriter();
+        } else if (currentState === STATE_PAUSE) {
+          handlePause();
+        } else if (currentState === STATE_CASCADE) {
+          handleCascade();
+        } else if (currentState === STATE_CLOSING) {
+          handleClosing();
+        }
+      };
+
+      // === PLACEHOLDER FUNCTIONS (filled in later tasks) ===
+      function drawParchmentBackground() {
+        p.background('#f4e8d1');
+      }
+
+      function handleTypewriter() {
+        // TODO: Task 3
+      }
+
+      function handlePause() {
+        // TODO: Task 4
+      }
+
+      function handleCascade() {
+        // TODO: Task 5
+      }
+
+      function handleClosing() {
+        // TODO: Task 6
+      }
+    };
+
+    // Initialize p5
+    new p5(sketch);
+  </script>
+</body>
+</html>
