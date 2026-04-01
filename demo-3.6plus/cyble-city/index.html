@@ -497,11 +497,160 @@
         
         const playerController = new PlayerController(sceneManager.scene);
         
+        // ==================== COLLECTIBLE MANAGER ====================
+        class CollectibleManager {
+            constructor(scene, playerController) {
+                this.scene = scene;
+                this.playerController = playerController;
+                this.collectibles = [];
+                this.score = 0;
+                this.collectibleCount = 20;
+                this.init();
+            }
+            
+            init() {
+                for (let i = 0; i < this.collectibleCount; i++) {
+                    this.spawnCollectible();
+                }
+            }
+            
+            spawnCollectible(position = null) {
+                // 能量球组
+                const group = new THREE.Group();
+                
+                // 球体
+                const geometry = new THREE.SphereGeometry(0.8, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: Math.random() > 0.5 ? 0xffd700 : 0x00f3ff,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                group.add(sphere);
+                
+                // 发光外壳
+                const outerGeometry = new THREE.SphereGeometry(1.2, 16, 16);
+                const outerMaterial = new THREE.MeshBasicMaterial({
+                    color: material.color,
+                    transparent: true,
+                    opacity: 0.3,
+                    wireframe: true
+                });
+                const outerSphere = new THREE.Mesh(outerGeometry, outerMaterial);
+                group.add(outerSphere);
+                
+                // 内部粒子
+                const particleCount = 8;
+                for (let i = 0; i < particleCount; i++) {
+                    const particleGeometry = new THREE.SphereGeometry(0.1, 4, 4);
+                    const particleMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xffffff
+                    });
+                    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                    const angle = (i / particleCount) * Math.PI * 2;
+                    const radius = 0.5;
+                    particle.position.set(
+                        Math.cos(angle) * radius,
+                        Math.sin(angle) * radius,
+                        0
+                    );
+                    group.add(particle);
+                }
+                
+                // 随机位置
+                if (position) {
+                    group.position.copy(position);
+                } else {
+                    group.position.set(
+                        (Math.random() - 0.5) * 160,
+                        2 + Math.random() * 20,
+                        (Math.random() - 0.5) * 160
+                    );
+                }
+                
+                // 存储引用用于动画
+                group.userData.outerSphere = outerSphere;
+                group.userData.particles = [];
+                for (let i = 8; i < group.children.length; i++) {
+                    group.userData.particles.push(group.children[i]);
+                }
+                
+                this.scene.add(group);
+                this.collectibles.push(group);
+            }
+            
+            update(time) {
+                const playerPos = this.playerController.getPosition();
+                
+                for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                    const collectible = this.collectibles[i];
+                    
+                    // 旋转动画
+                    collectible.rotation.y += 0.02;
+                    collectible.rotation.z = Math.sin(time * 0.002 + i) * 0.2;
+                    
+                    // 外壳脉动
+                    if (collectible.userData.outerSphere) {
+                        const scale = 1 + Math.sin(time * 0.003 + i) * 0.1;
+                        collectible.userData.outerSphere.scale.setScalar(scale);
+                    }
+                    
+                    // 内部粒子旋转
+                    if (collectible.userData.particles) {
+                        collectible.userData.particles.forEach((particle, idx) => {
+                            const angle = time * 0.002 + (idx / collectible.userData.particles.length) * Math.PI * 2;
+                            particle.position.x = Math.cos(angle) * 0.5;
+                            particle.position.y = Math.sin(angle) * 0.5;
+                        });
+                    }
+                    
+                    // 碰撞检测
+                    const distance = collectible.position.distanceTo(playerPos);
+                    if (distance < 2.5) {
+                        this.collect(collectible, i);
+                    }
+                }
+            }
+            
+            collect(collectible, index) {
+                // 移除
+                this.scene.remove(collectible);
+                this.collectibles.splice(index, 1);
+                
+                // 更新分数
+                this.score++;
+                document.getElementById('score').textContent = this.score;
+                
+                // 显示反馈
+                this.showFeedback(collectible.position);
+                
+                // 重新生成
+                setTimeout(() => this.spawnCollectible(), 2000);
+            }
+            
+            showFeedback(position) {
+                const feedback = document.getElementById('collect-feedback');
+                feedback.style.left = '50%';
+                feedback.style.top = '40%';
+                feedback.style.opacity = '1';
+                feedback.textContent = '+' + 1;
+                
+                setTimeout(() => {
+                    feedback.style.opacity = '0';
+                }, 500);
+            }
+        }
+        
+        const collectibleManager = new CollectibleManager(sceneManager.scene, playerController);
+        
         // ==================== GAME LOOP ====================
         function animate() {
             requestAnimationFrame(animate);
             
+            const time = Date.now();
+            
             playerController.update();
+            collectibleManager.update(time);
             
             // 相机跟随
             const playerPos = playerController.getPosition();
