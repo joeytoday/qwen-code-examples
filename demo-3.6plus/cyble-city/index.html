@@ -188,6 +188,133 @@
         
         // ==================== GAME INITIALIZATION ====================
         const sceneManager = new SceneManager();
+        
+        // ==================== CITY GENERATOR ====================
+        class CityGenerator {
+            constructor(scene) {
+                this.scene = scene;
+                this.buildings = [];
+                this.citySize = 200;
+                this.buildingCount = 12;
+                this.generate();
+            }
+            
+            generate() {
+                // 创建地面
+                this.createGround();
+                
+                // 生成建筑
+                for (let i = 0; i < this.buildingCount; i++) {
+                    this.createBuilding();
+                }
+            }
+            
+            createGround() {
+                // 地面网格
+                const gridHelper = new THREE.GridHelper(this.citySize, 40, 0x00f3ff, 0x1a1a2e);
+                gridHelper.position.y = 0.1;
+                this.scene.add(gridHelper);
+                
+                // 地面平面
+                const planeGeometry = new THREE.PlaneGeometry(this.citySize, this.citySize);
+                const planeMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x0d0d12,
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+                plane.rotation.x = -Math.PI / 2;
+                plane.receiveShadow = true;
+                this.scene.add(plane);
+            }
+            
+            createBuilding() {
+                // 随机位置（避免中心区域）
+                let x, z;
+                do {
+                    x = (Math.random() - 0.5) * (this.citySize - 20);
+                    z = (Math.random() - 0.5) * (this.citySize - 20);
+                } while (Math.abs(x) < 15 && Math.abs(z) < 15); // 留出中心飞行区域
+                
+                // 随机尺寸
+                const width = 5 + Math.random() * 8;
+                const depth = 5 + Math.random() * 8;
+                const height = 20 + Math.random() * 60;
+                
+                // 建筑主体
+                const geometry = new THREE.BoxGeometry(width, height, depth);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x1a1a2e,
+                    roughness: 0.7,
+                    metalness: 0.3
+                });
+                const building = new THREE.Mesh(geometry, material);
+                building.position.set(x, height / 2, z);
+                building.castShadow = true;
+                building.receiveShadow = true;
+                this.scene.add(building);
+                this.buildings.push(building);
+                
+                // 添加霓虹边缘装饰
+                this.addNeonEdges(building, width, height, depth);
+                
+                // 添加发光窗户
+                this.addWindows(building, width, height, depth);
+            }
+            
+            addNeonEdges(building, width, height, depth) {
+                const edges = new THREE.EdgesGeometry(building.geometry);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: Math.random() > 0.5 ? 0x00f3ff : 0xff00aa,
+                    linewidth: 2
+                });
+                const edgeLines = new THREE.LineSegments(edges, lineMaterial);
+                edgeLines.position.copy(building.position);
+                this.scene.add(edgeLines);
+            }
+            
+            addWindows(building, width, height, depth) {
+                const windowCount = Math.floor(Math.random() * 20) + 10;
+                const windowGeometry = new THREE.PlaneGeometry(0.5, 0.8);
+                
+                for (let i = 0; i < windowCount; i++) {
+                    const windowMaterial = new THREE.MeshBasicMaterial({
+                        color: Math.random() > 0.7 ? 0xffff00 : 0x00ffff,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
+                    
+                    // 随机分配到四个面
+                    const face = Math.floor(Math.random() * 4);
+                    const offsetX = (Math.random() - 0.5) * (width - 1);
+                    const offsetY = (Math.random() - 0.5) * (height - 2);
+                    const offsetZ = (Math.random() - 0.5) * (depth - 1);
+                    
+                    switch(face) {
+                        case 0: // 前面
+                            windowMesh.position.set(building.position.x + offsetX, building.position.y + offsetY, building.position.z + depth/2 + 0.01);
+                            break;
+                        case 1: // 后面
+                            windowMesh.position.set(building.position.x + offsetX, building.position.y + offsetY, building.position.z - depth/2 - 0.01);
+                            windowMesh.rotation.y = Math.PI;
+                            break;
+                        case 2: // 左面
+                            windowMesh.position.set(building.position.x - width/2 - 0.01, building.position.y + offsetY, building.position.z + offsetZ);
+                            windowMesh.rotation.y = Math.PI / 2;
+                            break;
+                        case 3: // 右面
+                            windowMesh.position.set(building.position.x + width/2 + 0.01, building.position.y + offsetY, building.position.z + offsetZ);
+                            windowMesh.rotation.y = -Math.PI / 2;
+                            break;
+                    }
+                    
+                    this.scene.add(windowMesh);
+                }
+            }
+        }
+        
+        const cityGenerator = new CityGenerator(sceneManager.scene);
     </script>
 </body>
 </html>
