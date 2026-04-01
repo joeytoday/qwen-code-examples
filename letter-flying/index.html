@@ -368,7 +368,22 @@
       }
 
       function handleClosing() {
-        // TODO: Task 6
+        // Fade in "Think Different." at center over 1.5 seconds
+        const elapsed = p.millis() - stateStartTime;
+        const fadeDuration = 1500;
+        closingAlpha = Math.min(elapsed / fadeDuration, 1.0);
+
+        // Draw any remaining balloon trails
+        drawOBalloons();
+
+        // Draw closing text centered
+        p.push();
+        p.textAlign(p.CENTER, p.CENTER);
+        p.textSize(48);
+        p.fill(44, 36, 22, closingAlpha * 255); // #2c2416 with fade alpha
+        p.noStroke();
+        p.text("Think Different.", W / 2, H / 2);
+        p.pop();
       }
 
       function drawTextBlock(offsetY = 0) {
