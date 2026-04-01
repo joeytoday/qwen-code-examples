@@ -1,8 +1,35 @@
-// Placeholder component - will be implemented in Task 5
+import { useEffect } from 'react';
+import { useParticleEngine } from '../hooks/useParticleEngine';
+
 export default function ParticleCanvas() {
+  const { canvasRef, addBurst, setMousePos } = useParticleEngine();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos(e.clientX, e.clientY);
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      addBurst(e.clientX, e.clientY);
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleClick);
+
+    return () => {
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('click', handleClick);
+    };
+  }, [addBurst, setMousePos, canvasRef]);
+
   return (
-    <div className="w-full h-full flex items-center justify-center text-white/40">
-      ParticleCanvas - Coming soon
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full block cursor-crosshair"
+      style={{ touchAction: 'none' }}
+    />
   );
 }
