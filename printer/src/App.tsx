@@ -1,19 +1,29 @@
 import { useState } from "react";
-import NoteInput from "./components/NoteInput";
-import ColorPicker, { type ColorName } from "./components/ColorPicker";
-import PrintButton from "./components/PrintButton";
+import Printer from "./components/Printer";
+import Board from "./components/Board";
+import type { StickyNote } from "./components/Board";
+import type { ColorName } from "./components/ColorPicker";
+
+const COLOR_MAP: Record<ColorName, string> = {
+  yellow: "bg-note-yellow",
+  pink: "bg-note-pink",
+  blue: "bg-note-blue",
+  green: "bg-note-green",
+  purple: "bg-note-purple",
+  orange: "bg-note-orange",
+};
 
 export default function App() {
-  const [text, setText] = useState("");
-  const [color, setColor] = useState<ColorName>("yellow");
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [notes, setNotes] = useState<StickyNote[]>([]);
 
-  const canPrint = text.trim().length > 0 && text.length <= 100 && !isPrinting;
-
-  const handlePrint = () => {
-    if (!canPrint) return;
-    setIsPrinting(true);
-    setTimeout(() => setIsPrinting(false), 2000);
+  const handlePrintComplete = (text: string, color: ColorName) => {
+    const note: StickyNote = {
+      id: crypto.randomUUID(),
+      text,
+      color: COLOR_MAP[color],
+      createdAt: Date.now(),
+    };
+    setNotes((prev) => [...prev, note]);
   };
 
   return (
@@ -21,13 +31,8 @@ export default function App() {
       <h1 className="text-3xl font-bold text-stone-700">便签打印机</h1>
       <p className="text-stone-500">输入文字，打印便签，拖到看板上</p>
 
-      <div className="w-full max-w-md bg-stone-200 rounded-2xl p-6 shadow-lg border border-stone-300">
-        <NoteInput value={text} onChange={setText} disabled={isPrinting} />
-        <div className="mt-4 flex items-center justify-between">
-          <ColorPicker selected={color} onSelect={setColor} disabled={isPrinting} />
-          <PrintButton onClick={handlePrint} disabled={!canPrint} isPrinting={isPrinting} />
-        </div>
-      </div>
+      <Printer onPrintComplete={handlePrintComplete} />
+      <Board notes={notes} />
     </main>
   );
 }
