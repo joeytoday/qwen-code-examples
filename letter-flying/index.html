@@ -77,6 +77,54 @@
         const canvas = p.createCanvas(W, H);
         canvas.parent('canvas-container');
         p.textFont('Special Elite');
+        p.textSize(16);
+        p.textAlign(p.LEFT, p.BASELINE);
+
+        // Calculate character positions
+        const lineHeight = 40;
+        const charSpacing = 10; // approximate width per character at 16px
+        const marginX = 72;
+        const textBlockHeight = FULL_TEXT.length * lineHeight;
+        const startY = H - textBlockHeight - 80; // lower third
+
+        let oIndex = 0;
+        for (let i = 0; i < FULL_TEXT.length; i++) {
+          const line = FULL_TEXT[i];
+          const chars = [];
+          const y = startY + i * lineHeight;
+          for (let j = 0; j < line.length; j++) {
+            const ch = line[j];
+            const x = marginX + j * charSpacing;
+            const isO = (ch === 'o' || ch === 'O');
+            chars.push({
+              char: ch,
+              x: x,
+              y: y,
+              visible: false,
+              isO: isO,
+              popStart: 0,
+              popDuration: 100
+            });
+            if (isO) {
+              oBalloons.push({
+                originX: x,
+                originY: y,
+                currentX: x,
+                currentY: y,
+                scale: 1.0,
+                trailPoints: [],
+                active: false,
+                oIndex: oIndex,
+                startTime: 0,
+                targetX: W / 2 + p.random(-30, 30),
+                targetY: H * 0.25 + p.random(-40, 40)
+              });
+              oIndex++;
+            }
+          }
+          textLines.push({ chars: chars });
+        }
+
         stateStartTime = 0;
       };
 
@@ -98,7 +146,35 @@
 
       // === PLACEHOLDER FUNCTIONS (filled in later tasks) ===
       function drawParchmentBackground() {
+        // Base fill
         p.background('#f4e8d1');
+
+        // Perlin noise grain (sampled at 4× for softness)
+        p.noStroke();
+        const grainRes = 4;
+        for (let y = 0; y < H; y += grainRes) {
+          for (let x = 0; x < W; x += grainRes) {
+            const n = p.noise(x * 0.01, y * 0.01, p.frameCount * 0.001);
+            const brightness = p.map(n, 0, 1, -15, 15);
+            p.fill(0, 0, 0, 8); // subtle dark grain
+            if (brightness > 0) {
+              p.fill(0, 0, 0, p.map(brightness, 0, 15, 0, 8));
+            } else {
+              p.fill(255, 255, 255, p.map(Math.abs(brightness), 0, 15, 0, 6));
+            }
+            p.rect(x, y, grainRes, grainRes);
+          }
+        }
+
+        // Radial vignette (darker edges)
+        const vignette = p.drawingContext.createRadialGradient(
+          W / 2, H / 2, W * 0.3,
+          W / 2, H / 2, W * 0.7
+        );
+        vignette.addColorStop(0, 'rgba(244, 232, 209, 0)');
+        vignette.addColorStop(1, 'rgba(80, 60, 40, 0.15)');
+        p.drawingContext.fillStyle = vignette;
+        p.drawingContext.fillRect(0, 0, W, H);
       }
 
       function handleTypewriter() {
@@ -115,6 +191,34 @@
 
       function handleClosing() {
         // TODO: Task 6
+      }
+
+      function drawTextBlock(offsetY = 0) {
+        p.textSize(16);
+        p.fill('#2c2416');
+        p.noStroke();
+
+        for (let i = 0; i < textLines.length; i++) {
+          const line = textLines[i];
+          for (let j = 0; j < line.chars.length; j++) {
+            const ch = line.chars[j];
+            if (!ch.visible) continue;
+
+            // Pop-in animation for recently revealed chars
+            const elapsed = p.millis() - ch.popStart;
+            let s = 1.0;
+            if (elapsed < ch.popDuration) {
+              const t = elapsed / ch.popDuration;
+              s = 1.0 + 0.2 * (1.0 - t); // 1.2 → 1.0
+            }
+
+            p.push();
+            p.translate(ch.x, ch.y + offsetY);
+            p.scale(s);
+            p.text(ch.char, 0, 0);
+            p.pop();
+          }
+        }
       }
     };
 
