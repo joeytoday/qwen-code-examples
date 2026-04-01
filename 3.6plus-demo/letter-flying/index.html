@@ -68,6 +68,9 @@
       let textLines = [];      // [{chars: [{char, x, y, visible, isO, popStart, popDuration}]}]
       let oBalloons = [];      // [{originX, originY, currentX, currentY, scale, trailPoints, active, oIndex, startTime}]
       let textOffsetY = 0;     // cumulative upward pull on text block (lerped per frame as oBalloons rise)
+      let phase2Triggered = false; // once set, stays true — prevents stuttering from wobble
+      let textVelocity = 0;  // spring velocity for organic floating motion
+      let textBlockBottom = 0; // actual bottom Y of text block (set during init)
 
       // === CLOSING TEXT ===
       let closingAlpha = 0;
@@ -112,61 +115,69 @@
         parchmentBg.drawingContext.fillStyle = vignette;
         parchmentBg.drawingContext.fillRect(0, 0, W, H);
 
-        // Wait for font to load before setting textFont
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(() => {
-            p.textFont('Special Elite');
-          });
-        } else {
+        // Wait for font to load before calculating positions
+        const initAfterFontLoad = () => {
           p.textFont('Special Elite');
-        }
 
-        // Calculate character positions
-        const lineHeight = 40;
-        const charSpacing = 10; // approximate width per character at 16px
-        const marginX = 72;
-        const textBlockHeight = FULL_TEXT.length * lineHeight;
-        const startY = H - textBlockHeight - 80; // lower third
+          // Calculate text block bounds for off-screen detection
+          const lineHeight = 40;
+          const marginX = 72;
+          const contentWidth = W - 2 * marginX;
+          const textBlockHeight = FULL_TEXT.length * lineHeight;
+          const startY = H - textBlockHeight - 80; // lower third
+          textBlockBottom = startY + (FULL_TEXT.length - 1) * lineHeight; // actual bottom of last text line
 
-        let oIndex = 0;
-        for (let i = 0; i < FULL_TEXT.length; i++) {
-          const line = FULL_TEXT[i];
-          const chars = [];
-          const y = startY + i * lineHeight;
-          for (let j = 0; j < line.length; j++) {
-            const ch = line[j];
-            const x = marginX + j * charSpacing;
-            const isO = (ch === 'o' || ch === 'O');
-            chars.push({
-              char: ch,
-              x: x,
-              y: y,
-              visible: false,
-              isO: isO,
-              popStart: 0,
-              popDuration: 100
-            });
-            if (isO) {
-              oBalloons.push({
-                originX: x,
-                originY: y,
-                currentX: x,
-                currentY: y,
-                scale: 1.0,
-                trailPoints: [],
-                active: false,
-                oIndex: oIndex,
-                startTime: 0,
-                targetX: W / 2 + p.random(-30, 30),
-                targetY: H * 0.25 + p.random(-40, 40)
+          let oIndex = 0;
+          for (let i = 0; i < FULL_TEXT.length; i++) {
+            const line = FULL_TEXT[i];
+            const chars = [];
+            const y = startY + i * lineHeight;
+            // Calculate line width for centering
+            const lineWidth = p.textWidth(line);
+            const lineStartX = marginX + (contentWidth - lineWidth) / 2;
+            for (let j = 0; j < line.length; j++) {
+              const ch = line[j];
+              // Use actual character width for accurate positioning
+              const x = lineStartX + p.textWidth(line.substring(0, j));
+              const isO = (ch === 'o' || ch === 'O');
+              chars.push({
+                char: ch,
+                x: x,
+                y: y,
+                visible: false,
+                isO: isO,
+                popStart: 0,
+                popDuration: 100
               });
-              oIndex++;
+              if (isO) {
+                oBalloons.push({
+                  originX: x,
+                  originY: y,
+                  currentX: x,
+                  currentY: y,
+                  scale: 1.0,
+                  trailPoints: [],
+                  active: false,
+                  oIndex: oIndex,
+                  startTime: 0,
+                  // Spread targets across the upper half — no clustering
+                  targetX: 60 + p.random(W - 120),
+                  targetY: 60 + p.random(H * 0.4)
+                });
+                oIndex++;
+              }
             }
+            textLines.push({ chars: chars });
           }
-          textLines.push({ chars: chars });
-        }
 
-        transitionTo(STATE_TYPEWRITER);
+          transitionTo(STATE_TYPEWRITER);
+        };
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(initAfterFontLoad);
+        } else {
+          initAfterFontLoad();
+        }
       };
 
       p.draw = () => {
@@ -255,6 +266,18 @@
           }
         }
 
+        // === PHASE DETECTION ===
+        // Phase 1: Balloons rise individually, text stays still
+        // Phase 2: ALL balloons have crossed H/2 → text + balloons rise together off-screen
+        const thresholdY = H / 2;
+        const allActive = oBalloons.every(b => b.active);
+        const allCrossed = allActive && oBalloons.every(b => b.currentY < thresholdY);
+
+        // Persistent flag: once triggered, stays triggered (no stuttering from wobble)
+        if (allCrossed) {
+          phase2Triggered = true;
+        }
+
         // Update each active balloon's position
         for (let i = 0; i < oBalloons.length; i++) {
           const balloon = oBalloons[i];
@@ -285,7 +308,6 @@
               age: 0
             });
           } else {
-            // Shift trail and add new point
             balloon.trailPoints.shift();
             balloon.trailPoints.push({
               x: balloon.currentX,
@@ -300,68 +322,87 @@
           }
         }
 
-        // Calculate text block upward pull based on active balloons
-        const activeCount = oBalloons.filter(b => b.active).length;
-        const totalBalloons = oBalloons.length;
-        if (activeCount > 0) {
-          const progress = activeCount / totalBalloons;
-          textOffsetY = p.lerp(0, -H * 0.6, progress); // pull up 60% of canvas height
+        // Phase 2: spring-based text motion — balloons pull text upward organically
+        if (phase2Triggered) {
+          const maxOffset = -H * 1.2; // push everything well above the viewport
+
+          // Spring force: proportional to distance from target
+          const displacement = maxOffset - textOffsetY;
+          const springForce = displacement * 0.002;
+
+          // Damping: prevents overshoot oscillation
+          const damping = 0.90;
+
+          // Apply spring force to velocity
+          textVelocity += springForce;
+          textVelocity *= damping;
+
+          // Integrate velocity into position
+          textOffsetY += textVelocity;
+
+          // Snap to target when very close
+          if (Math.abs(textOffsetY - maxOffset) < 0.5 && Math.abs(textVelocity) < 0.1) {
+            textOffsetY = maxOffset;
+            textVelocity = 0;
+          }
         }
 
         // Draw text block with offset
         drawTextBlock(textOffsetY);
 
-        // Draw balloon trails and balloons
-        drawOBalloons();
+        // Draw balloon trails and balloons (with text offset in Phase 2)
+        drawOBalloons(textOffsetY);
 
-        // Transition to closing when all balloons have risen past center
-        if (oBalloons.length === 0) {
-          // Edge case: no "o" letters — skip directly to closing
+        // Transition to closing only when ALL content is fully off-screen
+        const textBottomScreenY = textBlockBottom + textOffsetY;
+        const allBalloonsOffScreen = oBalloons.every(b => {
+          const balloonScreenY = b.currentY + textOffsetY;
+          return balloonScreenY < -50;
+        });
+
+        if (textBottomScreenY < -20 && allBalloonsOffScreen) {
           transitionTo(STATE_CLOSING);
-        } else {
-          const allDone = oBalloons.every(b => {
-            if (!b.active) return false;
-            const balloonElapsed = p.millis() - b.startTime;
-            return balloonElapsed > 5000; // 5 seconds after launch
-          });
-
-          if (allDone) {
-            transitionTo(STATE_CLOSING);
-          }
         }
       }
 
-      function drawOBalloons() {
+      function drawOBalloons(offsetY = 0) {
         p.noFill();
 
         for (let i = 0; i < oBalloons.length; i++) {
           const balloon = oBalloons[i];
           if (!balloon.active) continue;
 
-          // Draw wavy trailing line
-          if (balloon.trailPoints.length > 1) {
-            p.strokeWeight(1.5);
-            for (let j = 0; j < balloon.trailPoints.length - 1; j++) {
-              const pt = balloon.trailPoints[j];
-              const nextPt = balloon.trailPoints[j + 1];
+          // Skip balloons that have moved off-screen (prevent reappearing)
+          const screenY = balloon.currentY + offsetY;
+          if (screenY < -100) continue;
 
-              // Fade trail based on age
-              const alpha = p.map(j, 0, balloon.trailPoints.length, 5, 40);
-              p.stroke(44, 36, 22, alpha); // #2c2416 at varying opacity
+          // Draw connecting line from balloon origin to current position
+          // Variable thickness based on stretch — thinner when taut, thicker when slack
+          const stretchDist = balloon.originY - balloon.currentY;
+          const lineAlpha = p.map(stretchDist, 0, H * 0.6, 40, 8); // fades as it stretches
+          const lineWeight = p.map(stretchDist, 0, H * 0.6, 1.5, 0.6); // thins as it stretches
 
-              // Add sine wave perturbation to trail
-              const waveOffset = Math.sin(p.frameCount * 0.05 + j * 0.3) * 8;
+          if (stretchDist > 5) {
+            p.strokeWeight(p.constrain(lineWeight, 0.4, 2));
+            p.stroke(44, 36, 22, p.constrain(lineAlpha, 5, 45));
 
-              p.line(
-                pt.x + waveOffset, pt.y,
-                nextPt.x + waveOffset, nextPt.y
-              );
-            }
+            // Slight curve in the line for organic "string" feel
+            const midX = (balloon.originX + balloon.currentX) / 2;
+            const midY = (balloon.originY + balloon.currentY) / 2 + offsetY;
+            const sagAmount = p.map(stretchDist, 0, H * 0.6, 12, 2); // sags less when stretched
+
+            p.noFill();
+            p.bezier(
+              balloon.originX, balloon.originY + offsetY,
+              midX, midY + sagAmount,
+              midX, midY + sagAmount,
+              balloon.currentX, balloon.currentY + offsetY
+            );
           }
 
           // Draw balloon "o" at scaled size
           p.push();
-          p.translate(balloon.currentX, balloon.currentY);
+          p.translate(balloon.currentX, balloon.currentY + offsetY);
           p.scale(balloon.scale);
           p.textSize(16);
           p.fill('#2c2416');
@@ -377,10 +418,7 @@
         const fadeDuration = 1500;
         closingAlpha = Math.min(elapsed / fadeDuration, 1.0);
 
-        // Draw any remaining balloon trails
-        drawOBalloons();
-
-        // Draw closing text centered
+        // Draw closing text centered (no balloons — they've all exited the page)
         p.push();
         p.textAlign(p.CENTER, p.CENTER);
         p.textSize(48);
