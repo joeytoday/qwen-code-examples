@@ -1,106 +1,56 @@
-# Qwen Code Examples
+# Interactive Particle Art
 
-This repository contains a collection of practical examples and best practices for **Qwen Code**, designed to help developers leverage the power of Qwen-based models in their workflows.
+A meditative, interactive particle system built with React, Framer Motion, and HTML5 Canvas.
 
-The project includes examples for:
+## Features
 
-- **Custom Commands**: Tailored command-line interactions for specific tasks.
-- **Custom Skills**: Specialized toolsets for complex workflows (e.g., image generation, content extraction).
-- **SDK Usage**: Practical code snippets showing how to integrate Qwen Code SDKs into your projects.
+- 🎨 Organic particle flow with mouse attraction
+- 💥 Click to emit particle bursts
+- ✨ Glowing particles with motion trails
+-  Smooth 60fps animation
 
-## Project Structure
+## Tech Stack
 
-```text
-.
-├── apps/               # Production-ready demo 
-├── sdk/                # SDK usage examples  
-├── vibe/               # Marketing materials 
-└── README.md
-```
-
-## Demo Apps
-
-Production-ready applications built on Qwen Code SDK, targeting different professional personas:
-
-| App | Target User | Description |
-|-----|-------------|-------------|
-| **ProtoFlow** | Product Managers | bolt.new-style rapid prototyping — one sentence to functional prototype |
-| **DesignPrint** | Designers | lovart-inspired print design tool — A5 brochures, banners, posters |
-| **CoWork** | Office Workers | Daily task assistant — emails, notes, reports |
-| **NoteGenius** | Content Creators | NotebookLM-style workspace — write articles with AI-generated illustrations |
-| **PromoStudio** | Video Creators | Promotional video maker — powered by Remotion and Wanx |
-
-See [apps/README.md](apps/README.md) for detailed documentation.
-
-## Featured Skills
-
-### 1. YouTube Transcript Extractor
-
-Extracts timestamped transcripts from YouTube videos for translation, summarization, and content creation.
-
-- **Location**: `skills/youtube-transcript-extractor/`
-- **Key Features**: Auto-language detection, timestamp formatting, and local file saving.
-
-### 2. Image Generation Skill
-
-Generates high-quality images from text descriptions using Alibaba Cloud's DashScope (Wanx).
-
-- **Location**: `skills/image-generate/`
-- **Key Features**: Smart prompt optimization for hand-drawn styles and automated asset management.
-
-### 3. Auto PR Skill
-
-Automated Pull Request submission assistant, including code review, documentation generation, and PR creation.
-
-- **Location**: `skills/auto-pr/`
-- **Key Features**:
-  - Branch preparation and synchronization
-  - Code review analysis and difference checking
-  - Automatic PR template discovery
-  - English documentation generation with user confirmation
-  - Automated PR submission via GitHub CLI
-  - Pre-checks for dependencies and authentication
-### 4. Dashboard Builder Skill
-
-Builds full-stack dashboard applications using React/Next.js + shadcn/ui + Tailwind CSS + Recharts + Express with customizable data sources. Perfect for data visualization dashboards, business intelligence interfaces, monitoring systems, KPI displays, and analytics platforms.
-
-- **Location**: `skills/dashboard-builder/`
-- **Key Features**: Professional dark theme, big screen optimization, animated components, configurable data integrations, quick start templates, and additional large-screen components.
-
-## Marketing Materials
-
-### Qwen Code Brochures
-
-Professional brochures introducing Qwen Code features and capabilities in multiple languages.
-
-- **Location**: `vibe/brochure/`
-- **Contents**:
-  - `qwen-code.html` - Chinese version of the introduction brochure
-  - `qwen-code.en.html` - English version of the introduction brochure
+- React 18+
+- TypeScript
+- Vite
+- Tailwind CSS
+- Framer Motion
+- HTML5 Canvas
 
 ## Getting Started
 
-### Prerequisites
-
-- Python 3.9+ (for Python-based skills)
-- Node.js (for JavaScript-based skills)
-- API Keys (as required by specific skills, e.g., `DASHSCOPE_API_KEY`)
-
-### Installation
-
-Clone the repository and install dependencies for the specific skill you want to use:
-
 ```bash
-git clone https://github.com/your-username/qwen-code-examples.git
-cd qwen-code-examples
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
-Refer to the `SKILL.md` file within each skill directory for detailed setup instructions.
+## Interaction
 
-## Contributing
+- **Move mouse**: Particles are attracted to your cursor
+- **Click**: Emit a burst of particles
 
-We welcome contributions! If you have a Qwen Code use case or example you'd like to share, feel free to open a Pull Request.
+## Customization
+
+Edit `src/hooks/useParticleEngine.ts` to adjust:
+- `burstCount`: Number of particles per burst
+- `mouseAttraction`: Strength of mouse pull
+- `trailAlpha`: Trail length (lower = longer trails)
+
+Edit `src/lib/Particle.ts` to customize:
+- `COLORS`: Particle color palette
+- `FRICTION`: Velocity damping
+- `MAX_SPEED`: Maximum particle velocity
 
 ## License
 
-MIT License
+MIT
