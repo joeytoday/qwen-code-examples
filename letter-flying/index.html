@@ -231,7 +231,140 @@
       }
 
       function handleCascade() {
-        // TODO: Task 5
+        const elapsed = p.millis() - stateStartTime;
+
+        // Activate balloons sequentially at O_CASCADE_INTERVAL intervals
+        for (let i = 0; i < oBalloons.length; i++) {
+          const balloon = oBalloons[i];
+          if (!balloon.active && elapsed >= i * O_CASCADE_INTERVAL) {
+            balloon.active = true;
+            balloon.startTime = p.millis();
+            // Hide the original "o" character in the text block
+            for (let li = 0; li < textLines.length; li++) {
+              for (let ci = 0; ci < textLines[li].chars.length; ci++) {
+                const ch = textLines[li].chars[ci];
+                if (ch.x === balloon.originX && ch.y === balloon.originY) {
+                  ch.visible = false;
+                }
+              }
+            }
+          }
+        }
+
+        // Update each active balloon's position
+        for (let i = 0; i < oBalloons.length; i++) {
+          const balloon = oBalloons[i];
+          if (!balloon.active) continue;
+
+          const balloonElapsed = p.millis() - balloon.startTime;
+          const riseDuration = 4000; // 4 seconds to reach target
+          let t = Math.min(balloonElapsed / riseDuration, 1.0);
+
+          // Ease out cubic for smooth deceleration
+          const ease = 1 - Math.pow(1 - t, 3);
+
+          // Scale: 1x → 3x
+          balloon.scale = 1.0 + 2.0 * ease;
+
+          // Position: interpolate from origin to target with randomization
+          balloon.currentX = p.lerp(balloon.originX, balloon.targetX, ease);
+          balloon.currentY = p.lerp(balloon.originY, balloon.targetY, ease);
+
+          // Add wobble (sine wave perturbation)
+          balloon.currentX += Math.sin(balloonElapsed * 0.003 + balloon.oIndex) * 15;
+
+          // Update trail points
+          if (balloon.trailPoints.length < TRAIL_MAX) {
+            balloon.trailPoints.push({
+              x: balloon.currentX,
+              y: balloon.currentY,
+              age: 0
+            });
+          } else {
+            // Shift trail and add new point
+            balloon.trailPoints.shift();
+            balloon.trailPoints.push({
+              x: balloon.currentX,
+              y: balloon.currentY,
+              age: 0
+            });
+          }
+
+          // Age trail points
+          for (let j = 0; j < balloon.trailPoints.length; j++) {
+            balloon.trailPoints[j].age++;
+          }
+        }
+
+        // Calculate text block upward pull based on active balloons
+        const activeCount = oBalloons.filter(b => b.active).length;
+        const totalBalloons = oBalloons.length;
+        if (activeCount > 0) {
+          const progress = activeCount / totalBalloons;
+          textOffsetY = p.lerp(0, -H * 0.6, progress); // pull up 60% of canvas height
+        }
+
+        // Draw text block with offset
+        drawTextBlock(textOffsetY);
+
+        // Draw balloon trails and balloons
+        drawOBalloons();
+
+        // Transition to closing when all balloons have risen past center
+        if (oBalloons.length === 0) {
+          // Edge case: no "o" letters — skip directly to closing
+          transitionTo(STATE_CLOSING);
+        } else {
+          const allDone = oBalloons.every(b => {
+            if (!b.active) return false;
+            const balloonElapsed = p.millis() - b.startTime;
+            return balloonElapsed > 5000; // 5 seconds after launch
+          });
+
+          if (allDone) {
+            transitionTo(STATE_CLOSING);
+          }
+        }
+      }
+
+      function drawOBalloons() {
+        p.noFill();
+
+        for (let i = 0; i < oBalloons.length; i++) {
+          const balloon = oBalloons[i];
+          if (!balloon.active) continue;
+
+          // Draw wavy trailing line
+          if (balloon.trailPoints.length > 1) {
+            p.strokeWeight(1.5);
+            for (let j = 0; j < balloon.trailPoints.length - 1; j++) {
+              const pt = balloon.trailPoints[j];
+              const nextPt = balloon.trailPoints[j + 1];
+
+              // Fade trail based on age
+              const alpha = p.map(j, 0, balloon.trailPoints.length, 5, 40);
+              p.stroke(44, 36, 22, alpha); // #2c2416 at varying opacity
+
+              // Add sine wave perturbation to trail
+              const waveOffset = Math.sin(p.frameCount * 0.05 + j * 0.3) * 8;
+
+              p.line(
+                pt.x + waveOffset, pt.y,
+                nextPt.x + waveOffset, nextPt.y
+              );
+            }
+          }
+
+          // Draw balloon "o" at scaled size
+          p.push();
+          p.translate(balloon.currentX, balloon.currentY);
+          p.scale(balloon.scale);
+          p.textSize(16);
+          p.fill('#2c2416');
+          p.noStroke();
+          p.text('o', 0, 0);
+          p.pop();
+        }
       }
 
       function handleClosing() {
