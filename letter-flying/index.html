@@ -43,6 +43,12 @@
       let currentState = STATE_TYPEWRITER;
       let stateStartTime = 0;
 
+      // State transition helper — ensures timer is reset on every state change
+      function transitionTo(newState) {
+        currentState = newState;
+        stateStartTime = p.millis();
+      }
+
       // === TEXT DATA ===
       const FULL_TEXT = [
         "Here's to the crazy ones. The misfits. The rebels. The troublemakers.",
@@ -61,8 +67,8 @@
       // === DATA STRUCTURES ===
       let textLines = [];      // [{chars: [{char, x, y, visible, isO, popStart, popDuration}]}]
       let oBalloons = [];      // [{originX, originY, currentX, currentY, scale, trailPoints, active, oIndex, startTime}]
-      let textOffsetY = 0;     // cumulative upward pull on text block
-      let font = null;         // loaded p5 font
+      let textOffsetY = 0;     // cumulative upward pull on text block (lerped per frame as oBalloons rise)
+      let font = null;         // loaded p5 font (used in preload + setup for font loading safety)
 
       // === CLOSING TEXT ===
       let closingAlpha = 0;
