@@ -315,6 +315,208 @@
         }
         
         const cityGenerator = new CityGenerator(sceneManager.scene);
+        
+        // ==================== PLAYER CONTROLLER ====================
+        class PlayerController {
+            constructor(scene) {
+                this.scene = scene;
+                this.player = null;
+                this.velocity = new THREE.Vector3();
+                this.speed = 0.3;
+                this.acceleration = 0.02;
+                this.friction = 0.95;
+                this.maxSpeed = 0.8;
+                this.keys = {
+                    up: false,
+                    down: false,
+                    left: false,
+                    right: false,
+                    shift: false
+                };
+                this.createPlayer();
+                this.setupInput();
+            }
+            
+            createPlayer() {
+                // 飞行器主体 - 三角翼造型
+                const group = new THREE.Group();
+                
+                // 机身
+                const bodyGeometry = new THREE.ConeGeometry(0.5, 3, 8);
+                const bodyMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x222222,
+                    roughness: 0.3,
+                    metalness: 0.8
+                });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.rotation.x = Math.PI / 2;
+                group.add(body);
+                
+                // 霓虹轮廓线
+                const edgesGeometry = new THREE.EdgesGeometry(bodyGeometry);
+                const edgesMaterial = new THREE.LineBasicMaterial({ color: 0x00f3ff });
+                const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+                edges.rotation.x = Math.PI / 2;
+                group.add(edges);
+                
+                // 左翼
+                const leftWingGeometry = new THREE.BufferGeometry();
+                const leftWingVertices = new Float32Array([
+                    0, 0, 0,
+                    -2, 0, 1,
+                    -2, 0, -0.5
+                ]);
+                leftWingGeometry.setAttribute('position', new THREE.BufferAttribute(leftWingVertices, 3));
+                const leftWingMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x00f3ff, 
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const leftWing = new THREE.Mesh(leftWingGeometry, leftWingMaterial);
+                group.add(leftWing);
+                
+                // 右翼
+                const rightWingGeometry = new THREE.BufferGeometry();
+                const rightWingVertices = new Float32Array([
+                    0, 0, 0,
+                    2, 0, 1,
+                    2, 0, -0.5
+                ]);
+                rightWingGeometry.setAttribute('position', new THREE.BufferAttribute(rightWingVertices, 3));
+                const rightWing = new THREE.Mesh(rightWingGeometry, leftWingMaterial);
+                group.add(rightWing);
+                
+                // 尾焰粒子发射器占位
+                group.userData.thrusterGroup = new THREE.Group();
+                group.add(group.userData.thrusterGroup);
+                
+                this.player = group;
+                this.player.position.set(0, 5, 0);
+                this.scene.add(this.player);
+                
+                // 添加点光源跟随飞行器
+                const playerLight = new THREE.PointLight(0x00f3ff, 1, 20);
+                playerLight.position.set(0, 1, 0);
+                this.player.add(playerLight);
+            }
+            
+            setupInput() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp': this.keys.up = true; break;
+                        case 'ArrowDown': this.keys.down = true; break;
+                        case 'ArrowLeft': this.keys.left = true; break;
+                        case 'ArrowRight': this.keys.right = true; break;
+                        case 'ShiftLeft':
+                        case 'ShiftRight': this.keys.shift = true; break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp': this.keys.up = false; break;
+                        case 'ArrowDown': this.keys.down = false; break;
+                        case 'ArrowLeft': this.keys.left = false; break;
+                        case 'ArrowRight': this.keys.right = false; break;
+                        case 'ShiftLeft':
+                        case 'ShiftRight': this.keys.shift = false; break;
+                    }
+                });
+            }
+            
+            update() {
+                if (!this.player) return;
+                
+                const currentSpeed = this.keys.shift ? this.maxSpeed : this.maxSpeed * 0.5;
+                
+                // 计算加速度
+                if (this.keys.up) this.velocity.z -= this.acceleration;
+                if (this.keys.down) this.velocity.z += this.acceleration;
+                if (this.keys.left) this.velocity.x -= this.acceleration;
+                if (this.keys.right) this.velocity.x += this.acceleration;
+                
+                // 应用摩擦力
+                this.velocity.x *= this.friction;
+                this.velocity.z *= this.friction;
+                
+                // 限制最大速度
+                this.velocity.x = Math.max(-currentSpeed, Math.min(currentSpeed, this.velocity.x));
+                this.velocity.z = Math.max(-currentSpeed, Math.min(currentSpeed, this.velocity.z));
+                
+                // 更新位置
+                this.player.position.x += this.velocity.x;
+                this.player.position.z += this.velocity.z;
+                
+                // 边界限制
+                const boundary = 90;
+                this.player.position.x = Math.max(-boundary, Math.min(boundary, this.player.position.x));
+                this.player.position.z = Math.max(-boundary, Math.min(boundary, this.player.position.z));
+                
+                // 倾斜效果
+                this.player.rotation.z = -this.velocity.x * 0.5;
+                this.player.rotation.x = this.velocity.z * 0.3;
+                
+                // 更新尾焰
+                this.updateThruster();
+            }
+            
+            updateThruster() {
+                if (!this.player.userData.thrusterGroup) return;
+                
+                // 简单的尾焰效果
+                const thrusterGroup = this.player.userData.thrusterGroup;
+                
+                // 清除旧的
+                while(thrusterGroup.children.length > 0) {
+                    thrusterGroup.remove(thrusterGroup.children[0]);
+                }
+                
+                // 如果有移动，添加尾焰
+                if (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01) {
+                    const particleCount = 5;
+                    for (let i = 0; i < particleCount; i++) {
+                        const particleGeometry = new THREE.CircleGeometry(0.1 + Math.random() * 0.1, 8);
+                        const particleMaterial = new THREE.MeshBasicMaterial({
+                            color: this.keys.shift ? 0xff00aa : 0x00f3ff,
+                            transparent: true,
+                            opacity: 0.6 - i * 0.1
+                        });
+                        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                        particle.position.set(0, 0, 1.5 + i * 0.3);
+                        particle.scale.setScalar(1 - i * 0.15);
+                        thrusterGroup.add(particle);
+                    }
+                }
+            }
+            
+            getPosition() {
+                return this.player ? this.player.position.clone() : new THREE.Vector3(0, 5, 0);
+            }
+        }
+        
+        const playerController = new PlayerController(sceneManager.scene);
+        
+        // ==================== GAME LOOP ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            playerController.update();
+            
+            // 相机跟随
+            const playerPos = playerController.getPosition();
+            const cameraTarget = new THREE.Vector3(
+                playerPos.x * 0.3,
+                playerPos.y + 8,
+                playerPos.z + 15
+            );
+            sceneManager.camera.position.lerp(cameraTarget, 0.05);
+            sceneManager.camera.lookAt(playerPos);
+            
+            sceneManager.render();
+        }
+        
+        animate();
     </script>
 </body>
 </html>
