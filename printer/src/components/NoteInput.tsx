@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 const MAX_CHARS = 100;
 
 interface NoteInputProps {
