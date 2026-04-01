@@ -68,17 +68,54 @@
       let textLines = [];      // [{chars: [{char, x, y, visible, isO, popStart, popDuration}]}]
       let oBalloons = [];      // [{originX, originY, currentX, currentY, scale, trailPoints, active, oIndex, startTime}]
       let textOffsetY = 0;     // cumulative upward pull on text block (lerped per frame as oBalloons rise)
-      let font = null;         // loaded p5 font (used in preload + setup for font loading safety)
 
       // === CLOSING TEXT ===
       let closingAlpha = 0;
 
+      // === PRE-RENDERED ASSETS ===
+      let parchmentBg = null;  // off-screen graphics for parchment texture (avoids per-frame rect calls)
+
       p.setup = () => {
         const canvas = p.createCanvas(W, H);
         canvas.parent('canvas-container');
-        p.textFont('Special Elite');
         p.textSize(16);
         p.textAlign(p.LEFT, p.BASELINE);
+
+        // Pre-render parchment background once (avoids 48K rect calls per frame)
+        parchmentBg = p.createGraphics(W, H);
+        parchmentBg.background('#f4e8d1');
+        parchmentBg.noStroke();
+        const grainRes = 4;
+        for (let y = 0; y < H; y += grainRes) {
+          for (let x = 0; x < W; x += grainRes) {
+            const n = parchmentBg.noise(x * 0.01, y * 0.01);
+            const brightness = parchmentBg.map(n, 0, 1, -15, 15);
+            if (brightness > 0) {
+              parchmentBg.fill(0, 0, 0, parchmentBg.map(brightness, 0, 15, 0, 8));
+            } else {
+              parchmentBg.fill(255, 255, 255, parchmentBg.map(Math.abs(brightness), 0, 15, 0, 6));
+            }
+            parchmentBg.rect(x, y, grainRes, grainRes);
+          }
+        }
+        // Vignette on pre-rendered background
+        const vignette = parchmentBg.drawingContext.createRadialGradient(
+          W / 2, H / 2, W * 0.3,
+          W / 2, H / 2, W * 0.7
+        );
+        vignette.addColorStop(0, 'rgba(244, 232, 209, 0)');
+        vignette.addColorStop(1, 'rgba(80, 60, 40, 0.15)');
+        parchmentBg.drawingContext.fillStyle = vignette;
+        parchmentBg.drawingContext.fillRect(0, 0, W, H);
+
+        // Wait for font to load before setting textFont
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => {
+            p.textFont('Special Elite');
+          });
+        } else {
+          p.textFont('Special Elite');
+        }
 
         // Calculate character positions
         const lineHeight = 40;
@@ -125,7 +162,7 @@
           textLines.push({ chars: chars });
         }
 
-        stateStartTime = 0;
+        transitionTo(STATE_TYPEWRITER);
       };
 
       p.draw = () => {
@@ -146,35 +183,12 @@
 
       // === PLACEHOLDER FUNCTIONS (filled in later tasks) ===
       function drawParchmentBackground() {
-        // Base fill
-        p.background('#f4e8d1');
-
-        // Perlin noise grain (sampled at 4× for softness)
-        p.noStroke();
-        const grainRes = 4;
-        for (let y = 0; y < H; y += grainRes) {
-          for (let x = 0; x < W; x += grainRes) {
-            const n = p.noise(x * 0.01, y * 0.01, p.frameCount * 0.001);
-            const brightness = p.map(n, 0, 1, -15, 15);
-            p.fill(0, 0, 0, 8); // subtle dark grain
-            if (brightness > 0) {
-              p.fill(0, 0, 0, p.map(brightness, 0, 15, 0, 8));
-            } else {
-              p.fill(255, 255, 255, p.map(Math.abs(brightness), 0, 15, 0, 6));
-            }
-            p.rect(x, y, grainRes, grainRes);
-          }
+        // Draw pre-rendered parchment (single image call instead of 48K rects)
+        if (parchmentBg) {
+          p.image(parchmentBg, 0, 0);
+        } else {
+          p.background('#f4e8d1');
         }
-
-        // Radial vignette (darker edges)
-        const vignette = p.drawingContext.createRadialGradient(
-          W / 2, H / 2, W * 0.3,
-          W / 2, H / 2, W * 0.7
-        );
-        vignette.addColorStop(0, 'rgba(244, 232, 209, 0)');
-        vignette.addColorStop(1, 'rgba(80, 60, 40, 0.15)');
-        p.drawingContext.fillStyle = vignette;
-        p.drawingContext.fillRect(0, 0, W, H);
       }
 
       function handleTypewriter() {
@@ -194,7 +208,6 @@
       }
 
       function drawTextBlock(offsetY = 0) {
-        p.textSize(16);
         p.fill('#2c2416');
         p.noStroke();
 
