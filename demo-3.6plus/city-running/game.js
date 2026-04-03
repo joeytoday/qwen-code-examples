@@ -83,7 +83,7 @@ function init() {
     setupLight();
     createGround();
     createRoadNetwork();
-    // createScenery(); // Task 4
+    createScenery();
     loadModel();
     setupEvents();
     animate();
@@ -1224,138 +1224,169 @@ function createBus(x, z, rot) {
     return g;
 }
 
-// 主 scenery 函数
+// Main scenery function — grid-based city layout
 function createScenery() {
-    const outerRadius = 220;
-    const innerRadius = 140;
+  const roadInfo = createRoadNetwork();
+  const { mainRoadWidth, sideRoadPositions, sideRoadWidth } = roadInfo;
 
-    // === 北侧建筑 ===
-    createBuildingBox(-150, -outerRadius + 20, 0, COLORS.wallYellow);
-    createBuildingCylinder(-100, -outerRadius + 25, 0, 3, COLORS.wallBlue);
-    createBuildingLShape(-40, -outerRadius + 30, 0, 4);
-    createBuildingIndustrial(30, -outerRadius + 35, 0, 5, 'glass');
-    createBuildingCylinder(80, -outerRadius + 25, 0, 2, COLORS.wallPink);
-    createBuildingModern(140, -outerRadius + 25, 0);
+  const buildingFunctions = [
+    createBuildingBox,
+    createBuildingCylinder,
+    createBuildingLShape,
+    createBuildingTower,
+    createBuildingModern,
+    createBuildingClassic,
+    createBuildingArtDeco,
+    createBuildingIndustrial,
+    createBuildingVictorian,
+    createBuildingContemporary
+  ];
 
-    // === 东侧建筑 ===
-    createBuildingTower(outerRadius - 25, -80, Math.PI / 2);
-    createBuildingIndustrial(outerRadius - 35, -20, Math.PI / 2, 6, 'glass');
-    createBuildingCylinder(outerRadius - 25, 40, Math.PI / 2, 3, COLORS.wallGreen);
-    createBuildingClassic(outerRadius - 30, 100, Math.PI / 2);
+  const buildingColors = [0xE57373, 0x7986CB, 0xFFB74D, 0x4DB6AC, 0xAED581, 0xFFD54F];
 
-    // === 南侧建筑 ===
-    createBuildingArtDeco(120, outerRadius - 30, Math.PI);
-    createBuildingContemporary(60, outerRadius - 35, Math.PI);
-    createBuildingBox(10, outerRadius - 20, Math.PI, COLORS.wallPeach);
-    createBuildingLShape(-50, outerRadius - 30, Math.PI, 4);
-    createBuildingIndustrial(-110, outerRadius - 40, Math.PI, 5, 'concrete');
-    createBuildingBox(-160, outerRadius - 20, Math.PI, COLORS.wallBlue);
+  // Place buildings along both sides of the main road
+  const spacing = 40;
+  const halfCity = CITY_SIZE / 2;
+  const buildingXPositions = [
+    mainRoadWidth / 2 + SIDEWALK_WIDTH + 15,
+    -(mainRoadWidth / 2 + SIDEWALK_WIDTH + 15)
+  ];
 
-    // === 西侧建筑 ===
-    createBuildingVictorian(-outerRadius + 40, 0, 0);
-    createBuildingLShape(-outerRadius + 30, 60, -Math.PI / 2, 3);
-    createBuildingCylinder(-outerRadius + 25, -50, -Math.PI / 2, 3, COLORS.wallPink);
-    createBuildingModern(-outerRadius + 25, -120, -Math.PI / 2);
+  let buildingCount = 0;
 
-    // === 内圈装饰（赛道内侧）===
-    for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2;
-        const x = Math.cos(angle) * innerRadius;
-        const z = Math.sin(angle) * innerRadius;
-        createTree(x, z, i % 3 === 0 ? 'pine' : 'round');
+  buildingXPositions.forEach(x => {
+    for (let z = -halfCity + 20; z < halfCity; z += spacing) {
+      // Skip side road intersections
+      const isIntersection = sideRoadPositions.some(sz => Math.abs(z - sz) < SIDE_ROAD_WIDTH);
+      if (isIntersection) continue;
+
+      const idx = Math.floor(Math.random() * buildingFunctions.length);
+      const rot = 0;
+
+      switch (idx) {
+        case 0: // createBuildingBox
+          createBuildingBox(x, z, rot, buildingColors[Math.floor(Math.random() * buildingColors.length)]);
+          break;
+        case 1: // createBuildingCylinder
+          createBuildingCylinder(x, z, rot, 2 + Math.floor(Math.random() * 3), buildingColors[Math.floor(Math.random() * buildingColors.length)]);
+          break;
+        case 2: // createBuildingLShape
+          createBuildingLShape(x, z, rot, 2 + Math.floor(Math.random() * 3));
+          break;
+        case 3: // createBuildingTower
+          createBuildingTower(x, z, rot);
+          break;
+        case 4: // createBuildingModern
+          createBuildingModern(x, z, rot);
+          break;
+        case 5: // createBuildingClassic
+          createBuildingClassic(x, z, rot);
+          break;
+        case 6: // createBuildingArtDeco
+          createBuildingArtDeco(x, z, rot);
+          break;
+        case 7: // createBuildingIndustrial
+          createBuildingIndustrial(x, z, rot, 2 + Math.floor(Math.random() * 4), Math.random() > 0.5 ? 'glass' : 'concrete');
+          break;
+        case 8: // createBuildingVictorian
+          createBuildingVictorian(x, z, rot);
+          break;
+        case 9: // createBuildingContemporary
+          createBuildingContemporary(x, z, rot);
+          break;
+      }
+      buildingCount++;
     }
+  });
 
-    // 中心区域装饰
-    createBench(-30, 30, 0);
-    createBench(30, 30, 0);
-    createBench(0, -40, Math.PI / 4);
-    createPlanter(-20, 50);
-    createPlanter(20, 50);
+  // Add street furniture
+  addStreetFurniture(sideRoadPositions);
 
-    // === 街道设施：沿轨道外圈路灯 ===
-    for (let i = 0; i < 32; i++) {
-        const angle = (i / 32) * Math.PI * 2;
-        const x = Math.cos(angle) * (outerRadius - 10);
-        const z = Math.sin(angle) * (outerRadius - 10);
-        createLampPost(x, z);
+  // Add parked vehicles
+  addVehicles(sideRoadPositions);
+
+  // Create central park
+  createCentralPark();
+
+  console.log(`City scenery created: ${buildingCount} buildings`);
+}
+
+// Place street furniture along roads
+function addStreetFurniture(sideRoadPositions) {
+  const halfCity = CITY_SIZE / 2;
+
+  // Street lamps (every 20 units)
+  for (let z = -halfCity + 10; z < halfCity; z += 20) {
+    createLampPost(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 1, z);
+    createLampPost(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 1), z);
+  }
+
+  // Trees (every 30 units)
+  for (let z = -halfCity + 15; z < halfCity; z += 30) {
+    createTree(ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2, z);
+    createTree(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2), z);
+  }
+
+  // Benches (every 50 units)
+  for (let z = -halfCity + 25; z < halfCity; z += 50) {
+    createBench(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 2, z);
+    createBench(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 2), z);
+  }
+
+  // Trash cans (every 40 units)
+  for (let z = -halfCity + 20; z < halfCity; z += 40) {
+    createTrashCan(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 1.5, z);
+    createTrashCan(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 1.5), z);
+  }
+
+  // Fire hydrants (every 35 units)
+  for (let z = -halfCity + 17; z < halfCity; z += 35) {
+    createFireHydrant(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 0.5, z);
+    createFireHydrant(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 0.5), z);
+  }
+}
+
+// Park vehicles along side roads
+function addVehicles(sideRoadPositions) {
+  sideRoadPositions.forEach(z => {
+    // Taxis (2 per street)
+    createTaxi(-30, z + SIDE_ROAD_WIDTH / 2 + 1, 0);
+    createTaxi(30, z + SIDE_ROAD_WIDTH / 2 + 1, 0);
+
+    // Police car (1 per street)
+    createPoliceCar(0, z - SIDE_ROAD_WIDTH / 2 - 2, 0);
+
+    // Bus (1 per street)
+    createBus(-50, z + SIDE_ROAD_WIDTH / 2 + 2, 0);
+  });
+}
+
+// Create central park at city center (0, 0)
+function createCentralPark() {
+  const parkSize = 60;
+  const halfSize = parkSize / 2;
+
+  // Grass
+  const grassGeo = new THREE.PlaneGeometry(parkSize, parkSize);
+  const grassMat = new THREE.MeshLambertMaterial({ color: 0x7CFC00 });
+  const grass = new THREE.Mesh(grassGeo, grassMat);
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.set(0, 0.1, 0);
+  scene.add(grass);
+
+  // 9 trees in 3x3 grid
+  const treeSpacing = 12;
+  for (let x = -1; x <= 1; x += 1) {
+    for (let z = -1; z <= 1; z += 1) {
+      createTree(x * treeSpacing, z * treeSpacing);
     }
+  }
 
-    // === 垃圾桶（沿人行道）===
-    for (let i = 0; i < 16; i++) {
-        const angle = (i / 16) * Math.PI * 2;
-        const x = Math.cos(angle) * (outerRadius - 8);
-        const z = Math.sin(angle) * (outerRadius - 8);
-        createTrashCan(x, z);
-    }
-
-    // === 邮筒（间隔放置）===
-    createMailbox(-80, -outerRadius + 18);
-    createMailbox(80, -outerRadius + 18);
-    createMailbox(outerRadius - 18, 0);
-    createMailbox(-80, outerRadius - 18);
-    createMailbox(80, outerRadius - 18);
-    createMailbox(-outerRadius + 18, 0);
-
-    // === 消防栓（靠近建筑）===
-    for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2;
-        const x = Math.cos(angle) * (outerRadius - 6);
-        const z = Math.sin(angle) * (outerRadius - 6);
-        createFireHydrant(x, z);
-    }
-
-    // === 自行车停放架（靠近商业区）===
-    createBikeRack(-140, -outerRadius + 25, 0);
-    createBikeRack(10, -outerRadius + 35, 0);
-    createBikeRack(outerRadius - 20, -20, Math.PI / 2);
-    createBikeRack(50, outerRadius - 40, Math.PI);
-
-    // === 路牌 ===
-    createSign(-100, -outerRadius + 15, 0);
-    createSign(100, -outerRadius + 15, Math.PI);
-    createSign(outerRadius - 15, 80, Math.PI / 2);
-    createSign(-outerRadius + 15, -80, -Math.PI / 2);
-
-    // === 停放的车辆（轨道外侧）===
-    const carColors = [COLORS.trimRed, COLORS.wallYellow, COLORS.wallBlue, COLORS.wallGreen, COLORS.wallPink, COLORS.wallPeach];
-    for (let i = 0; i < 24; i++) {
-        const angle = (i / 24) * Math.PI * 2;
-        const x = Math.cos(angle) * (outerRadius - 5);
-        const z = Math.sin(angle) * (outerRadius - 5);
-        // Simple car placeholder using box geometry
-        const car = new THREE.Group();
-        car.position.set(x, 0.5, z);
-        const body = new THREE.Mesh(
-            new THREE.BoxGeometry(6, 2, 3),
-            new THREE.MeshStandardMaterial({ color: carColors[i % 6] })
-        );
-        body.position.y = 1;
-        body.castShadow = true;
-        car.add(body);
-        scene.add(car);
-    }
-
-    // === 出租车（随机分布）===
-    createTaxi(-60, -outerRadius + 18, 0);
-    createTaxi(60, -outerRadius + 18, Math.PI);
-    createTaxi(outerRadius - 18, 40, Math.PI / 2);
-    createTaxi(-outerRadius + 18, -40, -Math.PI / 2);
-
-    // === 警车（关键位置）===
-    createPoliceCar(0, -outerRadius + 18, 0);
-    createPoliceCar(outerRadius - 18, 0, Math.PI / 2);
-
-    // === 公交车（站点）===
-    createBus(-120, -outerRadius + 10, 0);
-    createBus(120, outerRadius - 10, Math.PI);
-
-    // === 花坛（装饰性）===
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const x = Math.cos(angle) * (outerRadius - 3);
-        const z = Math.sin(angle) * (outerRadius - 3);
-        createPlanter(x, z);
-    }
+  // 4 benches at corners
+  createBench(-halfSize + 5, -halfSize + 5, 0);
+  createBench(halfSize - 5, -halfSize + 5, 0);
+  createBench(-halfSize + 5, halfSize - 5, 0);
+  createBench(halfSize - 5, halfSize - 5, 0);
 }
 
 // ==================== MODEL ====================
