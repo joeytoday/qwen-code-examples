@@ -1381,8 +1381,6 @@ function updateHUD() {
     document.getElementById('lap-value').textContent = '0';
     document.getElementById('timer-value').textContent = '00:00';
     document.getElementById('gear-display').textContent = 'READY';
-    const di = document.getElementById('drift-indicator');
-    if (di) di.style.opacity = '0';
 }
 
 // ==================== CAMERA ====================
