@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ==================== CONSTANTS ====================
@@ -1378,8 +1377,10 @@ function updateAnim() {
 // ==================== HUD ====================
 function updateHUD() {
     document.getElementById('speed-value').textContent = score;
-    document.getElementById('lap-value').textContent = '0';
-    document.getElementById('timer-value').textContent = '00:00';
+    // TODO: Implement lap counter when gameplay features are added
+    // document.getElementById('lap-value').textContent = '0';
+    // TODO: Implement timer when gameplay features are added
+    // document.getElementById('timer-value').textContent = '00:00';
     document.getElementById('gear-display').textContent = 'READY';
 }
 
@@ -1431,6 +1432,7 @@ function animate() {
     const dt = Math.min(clock.getDelta(), 0.05);
     if (mixer) mixer.update(dt);
 
+    updateAnim();
     updateCamera();
     updateHUD();
     renderer.render(scene, camera);
