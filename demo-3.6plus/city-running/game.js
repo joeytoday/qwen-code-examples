@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 // ==================== CONSTANTS ====================
 const CITY_SIZE = 400;
@@ -1391,40 +1392,72 @@ function createCentralPark() {
 
 // ==================== MODEL ====================
 function loadModel() {
-    const ld = document.getElementById('loading');
-    ld.style.display = 'block';
+    const loading = document.getElementById('loading');
+    if (loading) loading.style.display = 'block';
+
     const loader = new GLTFLoader();
-    loader.load('https://threejs.org/examples/models/gltf/Soldier.glb',
-        gltf => {
-            const m = gltf.scene;
-            m.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
-            player = m; player.position.set(0, 0, 0);
-            player.scale.set(1, 1, 1);
-            scene.add(player);
-            mixer = new THREE.AnimationMixer(m);
-            const clips = gltf.animations;
-            console.log('Anims:', clips.map(c => c.name));
-            const names = ['idle', 'walk', 'run'];
-            clips.forEach((clip, i) => {
-                const a = mixer.clipAction(clip);
-                a.setEffectiveWeight(1);
-                acts[names[i]] = a;
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/libs/draco/');
+    loader.setDRACOLoader(dracoLoader);
+
+    loader.load(
+        'https://threejs.org/examples/models/gltf/Soldier.glb',
+        (gltf) => {
+            player = gltf.scene;
+            player.scale.set(1.5, 1.5, 1.5);
+            player.position.set(0, 0, 0);
+            player.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
             });
-            if (acts.idle) { acts.idle.play(); curAnim = 'idle'; }
-            ld.style.display = 'none';
+            scene.add(player);
+
+            mixer = new THREE.AnimationMixer(player);
+            acts = {};
+            gltf.animations.forEach((clip) => {
+                acts[clip.name.toLowerCase()] = clip;
+            });
+
+            if (acts['idle']) {
+                curAnim = 'idle';
+                mixer.clipAction(acts['idle']).play();
+            }
+
+            if (loading) loading.style.display = 'none';
         },
-        p => { ld.querySelector('p').textContent = `LOADING... ${Math.floor(p.loaded / p.total * 100)}%`; },
-        e => { console.error(e); ld.querySelector('p').textContent = 'FAILED - USING PLACEHOLDER'; setTimeout(() => ld.style.display = 'none', 2000); mkPlaceholder(); }
+        undefined,
+        (error) => {
+            console.error('Error loading model:', error);
+            mkPlayerPlaceholder();
+            if (loading) loading.style.display = 'none';
+        }
     );
 }
 
-function mkPlaceholder() {
-    player = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.5), new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 }));
-    body.position.y = 1; body.castShadow = true; player.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshStandardMaterial({ color: 0x555555 }));
-    head.position.y = 2.4; head.castShadow = true; player.add(head);
-    scene.add(player);
+function mkPlayerPlaceholder() {
+    const group = new THREE.Group();
+
+    const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4A90E2 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 1;
+    body.castShadow = true;
+    group.add(body);
+
+    const headGeo = new THREE.SphereGeometry(0.4, 8, 8);
+    const headMat = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 2.4;
+    head.castShadow = true;
+    group.add(head);
+
+    group.position.set(0, 0, 0);
+    scene.add(group);
+    player = group;
+
+    console.log('Player placeholder created');
 }
 
 // ==================== EVENTS ====================
@@ -1437,6 +1470,7 @@ function setupEvents() {
     document.addEventListener('keydown', e => {
         keys[e.code] = true;
         if (e.code === 'KeyC') { camMode = (camMode + 1) % 3; }
+        if (e.code === 'KeyR') { resetPlayer(); }
     });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
     window.addEventListener('resize', () => {
@@ -1457,20 +1491,90 @@ function fadeTo(name, dur) {
     curAnim = name;
 }
 
-function updateAnim() {
-    const as = Math.abs(playerState.isJumping ? 0 : (keys['KeyW'] || keys['ArrowUp'] ? MAX_SPEED : 0));
-    let target;
-    if (as < 0.1) target = 'idle';
-    else if (as < 2.0) target = 'walk';
-    else target = 'run';
-    fadeTo(target, 0.3);
-    for (const [n, a] of Object.entries(acts)) {
-        const w = a.getEffectiveWeight();
-        const bar = document.getElementById('bar-' + n);
-        const val = document.getElementById('val-' + n);
-        if (bar) bar.style.width = (w * 100) + '%';
-        if (val) val.textContent = w.toFixed(2);
+function updatePlayer(dt) {
+    if (!started || !player) return;
+
+    // Auto forward
+    playerState.z += BASE_SPEED * dt * 10;
+
+    // Lateral movement (A/D keys)
+    let lateralMove = 0;
+    if (keys['KeyA'] || keys['ArrowLeft']) {
+        lateralMove = -1;
+    } else if (keys['KeyD'] || keys['ArrowRight']) {
+        lateralMove = 1;
     }
+
+    if (lateralMove !== 0) {
+        playerState.x += lateralMove * LATERAL_SPEED * dt * 10;
+    }
+
+    // Jump
+    if ((keys['Space'] || keys['ArrowUp']) && !playerState.isJumping) {
+        playerState.isJumping = true;
+        playerState.vy = Math.sqrt(2 * GRAVITY * JUMP_HEIGHT);
+        playerState.jumpTime = 0;
+    }
+
+    // Apply gravity
+    if (playerState.isJumping) {
+        playerState.vy -= GRAVITY * dt;
+        playerState.y += playerState.vy * dt;
+        playerState.jumpTime += dt;
+
+        // Landing detection
+        if (playerState.y <= 0) {
+            playerState.y = 0;
+            playerState.isJumping = false;
+            playerState.vy = 0;
+        }
+    }
+
+    // Boundary limits (X clamped within road width)
+    const maxX = ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 2;
+    playerState.x = Math.max(-maxX, Math.min(maxX, playerState.x));
+
+    // Update player model position
+    player.position.set(playerState.x, playerState.y, playerState.z);
+
+    // Update facing direction (forward along Z axis)
+    player.rotation.y = 0;
+
+    // Update camera target
+    camState.lx = playerState.x;
+    camState.ly = playerState.y + 3;
+    camState.lz = playerState.z;
+}
+
+function updatePlayerAnim() {
+    if (!player || !mixer) return;
+
+    if (playerState.isJumping || BASE_SPEED > 2) {
+        if (curAnim !== 'run') {
+            fadeTo('run', 0.3);
+        }
+    } else {
+        if (curAnim !== 'idle') {
+            fadeTo('idle', 0.3);
+        }
+    }
+}
+
+function resetPlayer() {
+    playerState.x = 0;
+    playerState.z = 0;
+    playerState.y = 0;
+    playerState.vy = 0;
+    playerState.isJumping = false;
+    playerState.jumpTime = 0;
+    playerState.heading = 0;
+
+    if (player) {
+        player.position.set(0, 0, 0);
+    }
+
+    score = 0;
+    console.log('Player reset');
 }
 
 // ==================== HUD ====================
@@ -1531,9 +1635,13 @@ function animate() {
     const dt = Math.min(clock.getDelta(), 0.05);
     if (mixer) mixer.update(dt);
 
-    updateAnim();
-    updateCamera();
-    updateHUD();
+    if (started) {
+        updatePlayer(dt);
+        updatePlayerAnim();
+        updateCamera();
+        updateHUD();
+    }
+
     renderer.render(scene, camera);
 }
 
