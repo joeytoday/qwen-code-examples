@@ -1417,12 +1417,17 @@ function loadModel() {
             mixer = new THREE.AnimationMixer(player);
             acts = {};
             gltf.animations.forEach((clip) => {
-                acts[clip.name.toLowerCase()] = clip;
+                const name = clip.name.toLowerCase();
+                acts[name] = clip;
+                console.log(`Animation loaded: ${name}`);
             });
 
-            if (acts['idle']) {
-                curAnim = 'idle';
-                mixer.clipAction(acts['idle']).play();
+            // Play idle animation (with fallback to first available)
+            const idleName = 'idle';
+            const fallbackIdle = Object.keys(acts)[0];
+            if (acts[idleName] || fallbackIdle) {
+                curAnim = idleName;
+                mixer.clipAction(acts[idleName] || acts[fallbackIdle]).play();
             }
 
             if (loading) loading.style.display = 'none';
@@ -1549,14 +1554,10 @@ function updatePlayer(dt) {
 function updatePlayerAnim() {
     if (!player || !mixer) return;
 
-    if (playerState.isJumping || BASE_SPEED > 2) {
-        if (curAnim !== 'run') {
-            fadeTo('run', 0.3);
-        }
-    } else {
-        if (curAnim !== 'idle') {
-            fadeTo('idle', 0.3);
-        }
+    // Player is always auto-advancing, so always play run animation
+    const runName = acts['run'] ? 'run' : (Object.keys(acts)[1] || Object.keys(acts)[0]);
+    if (curAnim !== runName) {
+        fadeTo(runName, 0.3);
     }
 }
 
@@ -1572,6 +1573,14 @@ function resetPlayer() {
     if (player) {
         player.position.set(0, 0, 0);
     }
+
+    // Reset camera
+    camState.x = 0;
+    camState.y = 20;
+    camState.z = -30;
+    camState.lx = 0;
+    camState.ly = 3;
+    camState.lz = 0;
 
     score = 0;
     console.log('Player reset');
