@@ -1726,12 +1726,30 @@ function resetPlayer() {
 
 // ==================== HUD ====================
 function updateHUD() {
-    document.getElementById('speed-value').textContent = score;
-    // TODO: Implement lap counter when gameplay features are added
-    // document.getElementById('lap-value').textContent = '0';
-    // TODO: Implement timer when gameplay features are added
-    // document.getElementById('timer-value').textContent = '00:00';
-    document.getElementById('gear-display').textContent = 'READY';
+    // Update score
+    const scoreEl = document.getElementById('score-value');
+    if (scoreEl) {
+        scoreEl.textContent = score.toString();
+    }
+
+    // Update speed (m/s → km/h)
+    const speedEl = document.getElementById('speed-value');
+    if (speedEl) {
+        const speedKmh = (BASE_SPEED * 3.6).toFixed(1);
+        speedEl.textContent = speedKmh;
+    }
+
+    // Update jump hint
+    const jumpHint = document.getElementById('jump-hint');
+    if (jumpHint) {
+        if (playerState.isJumping) {
+            jumpHint.textContent = '跳跃中';
+            jumpHint.style.opacity = '1';
+        } else {
+            jumpHint.textContent = '按 SPACE 跳跃';
+            jumpHint.style.opacity = '0.7';
+        }
+    }
 }
 
 // ==================== CAMERA ====================
