@@ -1390,6 +1390,133 @@ function createCentralPark() {
   createBench(halfSize - 5, halfSize - 5, 0);
 }
 
+// ==================== COLLECTIBLES ====================
+function createCollectibles() {
+  const halfCity = CITY_SIZE / 2;
+  const roadCenterX = 0;
+
+  // Gold collectibles: every 15 units along main road, +10 points
+  const goldSpacing = 15;
+  const goldCount = Math.floor(CITY_SIZE / goldSpacing);
+
+  for (let i = 0; i < goldCount; i++) {
+    const z = -halfCity + i * goldSpacing + goldSpacing / 2;
+
+    // Skip side road intersections
+    const sideRoadZ = [-100, 0, 100];
+    if (sideRoadZ.some(sz => Math.abs(z - sz) < SIDE_ROAD_WIDTH)) continue;
+
+    createCollectible(roadCenterX, z, 'gold');
+  }
+
+  // Blue collectibles: every 50 units, elevated (require jump), +50 points
+  const blueSpacing = 50;
+  const blueCount = Math.floor(CITY_SIZE / blueSpacing);
+
+  for (let i = 0; i < blueCount; i++) {
+    const z = -halfCity + i * blueSpacing + blueSpacing / 2;
+
+    // Skip side road intersections
+    const sideRoadZ = [-100, 0, 100];
+    if (sideRoadZ.some(sz => Math.abs(z - sz) < SIDE_ROAD_WIDTH)) continue;
+
+    createCollectible(roadCenterX, z, 'blue', 3); // height 3, requires jump
+  }
+
+  console.log(`Collectibles created: ${collectibles.length}`);
+}
+
+function createCollectible(x, z, type, height = 1.5) {
+  const isGold = type === 'gold';
+  const radius = isGold ? 0.8 : 1.2;
+  const color = isGold ? 0xFFD700 : 0x4A90E2;
+  const points = isGold ? 10 : 50;
+
+  // Glowing sphere
+  const geo = new THREE.SphereGeometry(radius, 16, 16);
+  const mat = new THREE.MeshPhongMaterial({
+    color: color,
+    emissive: color,
+    emissiveIntensity: 0.5,
+    shininess: 100,
+    transparent: true,
+    opacity: 1
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, height, z);
+  scene.add(mesh);
+
+  collectibles.push({
+    mesh: mesh,
+    type: type,
+    points: points,
+    baseY: height,
+    collected: false
+  });
+}
+
+function checkCollectibleCollision() {
+  if (!player || collectibles.length === 0) return;
+
+  const px = playerState.x;
+  const py = playerState.y + 1.5; // player center height
+  const pz = playerState.z;
+
+  const collectRadius = 2.5; // collection radius
+
+  for (let i = collectibles.length - 1; i >= 0; i--) {
+    const col = collectibles[i];
+    if (col.collected) continue;
+
+    const dx = px - col.mesh.position.x;
+    const dy = py - col.mesh.position.y;
+    const dz = pz - col.mesh.position.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (dist < collectRadius) {
+      // Collected
+      col.collected = true;
+      score += col.points;
+
+      // Collection effect (scale up + fade out)
+      animateCollectibleEffect(col.mesh);
+
+      // Remove from scene after animation completes
+      setTimeout(() => {
+        scene.remove(col.mesh);
+        col.mesh.geometry.dispose();
+        col.mesh.material.dispose();
+      }, 300);
+
+      // Remove from array
+      collectibles.splice(i, 1);
+    }
+  }
+}
+
+function animateCollectibleEffect(mesh) {
+  const startTime = Date.now();
+  const duration = 300;
+
+  function animate() {
+    const elapsed = Date.now() - startTime;
+    const progress = elapsed / duration;
+
+    if (progress >= 1) {
+      mesh.visible = false;
+      return;
+    }
+
+    const scale = 1 + progress * 2; // scale up to 3x
+    mesh.scale.set(scale, scale, scale);
+    mesh.material.opacity = 1 - progress; // fade out
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
 // ==================== MODEL ====================
 function loadModel() {
     const loading = document.getElementById('loading');
@@ -1471,6 +1598,7 @@ function setupEvents() {
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         started = true;
+        createCollectibles();
     });
     document.addEventListener('keydown', e => {
         keys[e.code] = true;
@@ -1556,6 +1684,9 @@ function updatePlayer(dt) {
     camState.lx = playerState.x;
     camState.ly = playerState.y + 3;
     camState.lz = playerState.z;
+
+    // Check collectible collision
+    checkCollectibleCollision();
 }
 
 function updatePlayerAnim() {
@@ -1667,6 +1798,18 @@ function animate() {
     if (started) {
         updatePlayer(dt);
         updatePlayerAnim();
+
+        // Update collectible animations (rotation and floating)
+        const time = clock.elapsedTime;
+        collectibles.forEach(col => {
+            if (!col.collected && col.mesh.visible) {
+                // Rotation
+                col.mesh.rotation.y += 0.02;
+                // Floating
+                col.mesh.position.y = col.baseY + Math.sin(time * 2) * 0.3;
+            }
+        });
+
         updateCamera();
         updateHUD();
     }
