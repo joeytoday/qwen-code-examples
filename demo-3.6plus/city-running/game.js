@@ -1474,7 +1474,14 @@ function setupEvents() {
     });
     document.addEventListener('keydown', e => {
         keys[e.code] = true;
-        if (e.code === 'KeyC') { camMode = (camMode + 1) % 3; }
+        if (e.code === 'KeyC') {
+            camMode = (camMode + 1) % 3;
+            const camNames = ['追尾视角', '侧视角', '俯视视角'];
+            const camIndicator = document.getElementById('cam-indicator');
+            if (camIndicator) {
+                camIndicator.textContent = camNames[camMode];
+            }
+        }
         if (e.code === 'KeyR') { resetPlayer(); }
     });
     document.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1598,44 +1605,57 @@ function updateHUD() {
 
 // ==================== CAMERA ====================
 function updateCamera() {
-    const cd = 30, ch = 20, la = 10;
-    let tx, ty, tz, lx, ly, lz;
+  if (!player) return;
 
-    if (camMode === 0) {
-        // Third-person chase camera
-        tx = playerState.x + Math.sin(playerState.heading) * cd;
-        tz = playerState.z + Math.cos(playerState.heading) * cd;
-        ty = ch;
-        lx = playerState.x;
-        lz = playerState.z;
-        ly = 3;
-    } else if (camMode === 1) {
-        // Top-down view
-        tx = playerState.x;
-        tz = playerState.z;
-        ty = 50;
-        lx = playerState.x;
-        lz = playerState.z;
-        ly = 0;
-    } else {
-        // Close follow camera
-        tx = playerState.x + Math.sin(playerState.heading) * 15;
-        tz = playerState.z + Math.cos(playerState.heading) * 15;
-        ty = 10;
-        lx = playerState.x;
-        lz = playerState.z;
-        ly = 2;
-    }
+  const px = playerState.x;
+  const py = playerState.y;
+  const pz = playerState.z;
 
-    camState.x += (tx - camState.x) * 0.08;
-    camState.y += (ty - camState.y) * 0.08;
-    camState.z += (tz - camState.z) * 0.08;
-    camState.lx += (lx - camState.lx) * 0.1;
-    camState.ly += (ly - camState.ly) * 0.1;
-    camState.lz += (lz - camState.lz) * 0.1;
+  // Three camera modes
+  let targetX, targetY, targetZ;
+  let lookY = py + 3; // Look at character upper body
 
-    camera.position.set(camState.x, camState.y, camState.z);
-    camera.lookAt(camState.lx, camState.ly, camState.lz);
+  switch (camMode) {
+    case 0: // Chase camera (default)
+      // Behind and above at 45 degrees, distance 30, height 20
+      targetX = px;
+      targetY = py + 20;
+      targetZ = pz - 30;
+      break;
+
+    case 1: // Side view
+      // From the side at 90 degrees
+      targetX = px + 25;
+      targetY = py + 10;
+      targetZ = pz;
+      break;
+
+    case 2: // Top-down view
+      // Directly above, looking straight down
+      targetX = px;
+      targetY = py + 40;
+      targetZ = pz - 5;
+      lookY = py;
+      break;
+
+    default:
+      targetX = px;
+      targetY = py + 20;
+      targetZ = pz - 30;
+  }
+
+  // Smooth follow (lerp 0.08)
+  const lerpFactor = 0.08;
+  camState.x += (targetX - camState.x) * lerpFactor;
+  camState.y += (targetY - camState.y) * lerpFactor;
+  camState.z += (targetZ - camState.z) * lerpFactor;
+  camState.lx += (px - camState.lx) * lerpFactor;
+  camState.ly += (lookY - camState.ly) * lerpFactor;
+  camState.lz += (pz - camState.lz) * lerpFactor;
+
+  // Apply camera position and orientation
+  camera.position.set(camState.x, camState.y, camState.z);
+  camera.lookAt(camState.lx, camState.ly, camState.lz);
 }
 
 // ==================== RENDER LOOP ====================
