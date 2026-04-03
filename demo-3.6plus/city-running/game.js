@@ -1374,9 +1374,9 @@ function createCentralPark() {
   grass.position.set(0, 0.1, 0);
   scene.add(grass);
 
-  // 9 trees in 3x3 grid
+  // 12 trees in 4x3 grid
   const treeSpacing = 12;
-  for (let x = -1; x <= 1; x += 1) {
+  for (let x = -1.5; x <= 1.5; x += 1) {
     for (let z = -1; z <= 1; z += 1) {
       createTree(x * treeSpacing, z * treeSpacing);
     }
