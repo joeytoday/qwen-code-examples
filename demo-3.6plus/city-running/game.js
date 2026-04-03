@@ -12,7 +12,6 @@ const MAX_SPEED = 7.5;
 const BASE_SPEED = 5.0;
 const LATERAL_SPEED = 4.0;
 const JUMP_HEIGHT = 2.5;
-const JUMP_DURATION = 0.6;
 const GRAVITY = 9.8;
 
 // Tile Pack City 3 风格配色
@@ -62,9 +61,12 @@ let acts = {}, curAnim = 'idle';
 let score = 0;
 let collectibles = [];
 let camMode = 0;
-const playerState = { x: 0, z: 0, y: 0, vy: 0, isJumping: false, jumpTime: 0, heading: 0 };
+const playerState = { x: 0, z: 0, y: 0, vy: 0, isJumping: false, jumpTime: 0, heading: 0, laps: 0 };
 const keys = {};
 const camState = { x: 0, y: 20, z: -30, lx: 0, ly: 3, lz: 0 };
+
+// FPS tracking (development only)
+let frameCount = 0, lastFpsTime = 0, fps = 60;
 
 // ==================== INIT ====================
 function init() {
@@ -1455,6 +1457,10 @@ function createCollectible(x, z, type, height = 1.5) {
   });
 }
 
+/**
+ * 检测玩家与收集物的碰撞
+ * 收集半径 2.5 单位，收集后更新分数
+ */
 function checkCollectibleCollision() {
   if (!player || collectibles.length === 0) return;
 
@@ -1631,6 +1637,10 @@ function fadeTo(name, dur) {
     curAnim = name;
 }
 
+/**
+ * 更新玩家移动和物理
+ * @param {number} dt - 增量时间（秒）
+ */
 function updatePlayer(dt) {
     if (!started || !player) return;
 
@@ -1673,6 +1683,15 @@ function updatePlayer(dt) {
     // Boundary limits (X clamped within road width)
     const maxX = ROAD_WIDTH / 2 + SIDEWALK_WIDTH - 2;
     playerState.x = Math.max(-maxX, Math.min(maxX, playerState.x));
+
+    // Prevent running out of city bounds (loop back to start)
+    const maxZ = CITY_SIZE / 2 - 10;
+    if (playerState.z > maxZ) {
+        playerState.z = -maxZ;
+        playerState.laps++;
+        score += 100;
+        console.log(`完成一圈！+100 分 (总圈数: ${playerState.laps})`);
+    }
 
     // Update player model position
     player.position.set(playerState.x, playerState.y, playerState.z);
@@ -1724,7 +1743,9 @@ function resetPlayer() {
     console.log('Player reset');
 }
 
-// ==================== HUD ====================
+/**
+ * 更新 HUD 显示（分数、速度、跳跃提示）
+ */
 function updateHUD() {
     // Update score
     const scoreEl = document.getElementById('score-value');
@@ -1737,6 +1758,12 @@ function updateHUD() {
     if (speedEl) {
         const speedKmh = (BASE_SPEED * 3.6).toFixed(1);
         speedEl.textContent = speedKmh;
+    }
+
+    // Update lap count
+    const lapsEl = document.getElementById('laps-value');
+    if (lapsEl) {
+        lapsEl.textContent = playerState.laps.toString();
     }
 
     // Update jump hint
@@ -1753,6 +1780,10 @@ function updateHUD() {
 }
 
 // ==================== CAMERA ====================
+/**
+ * 更新第三人称相机位置和朝向
+ * 支持三种视角模式：追尾、侧视、俯视
+ */
 function updateCamera() {
   if (!player) return;
 
@@ -1811,6 +1842,17 @@ function updateCamera() {
 function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.05);
+
+    // FPS 计算（仅开发模式）
+    frameCount++;
+    const now = performance.now();
+    if (now - lastFpsTime >= 1000) {
+        fps = frameCount;
+        frameCount = 0;
+        lastFpsTime = now;
+        // console.log(`FPS: ${fps}`); // 取消注释以调试
+    }
+
     if (mixer) mixer.update(dt);
 
     if (started) {
