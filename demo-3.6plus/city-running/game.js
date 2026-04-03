@@ -75,6 +75,7 @@ function init() {
     scene.background = new THREE.Color(0x87ceeb);
     scene.fog = new THREE.Fog(0x87ceeb, 100, 400);
     camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 2000);
+    // 相机初始位置：人物后方
     camera.position.set(0, 20, -30);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(innerWidth, innerHeight);
@@ -1528,6 +1529,8 @@ function loadModel() {
     const loading = document.getElementById('loading');
     if (loading) loading.style.display = 'block';
 
+    console.log('Loading Soldier model from CDN...');
+
     const loader = new GLTFLoader();
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/libs/draco/');
@@ -1536,6 +1539,7 @@ function loadModel() {
     loader.load(
         'https://threejs.org/examples/models/gltf/Soldier.glb',
         (gltf) => {
+            console.log('Soldier model loaded successfully');
             player = gltf.scene;
             player.scale.set(1.5, 1.5, 1.5);
             player.position.set(0, 0, 0);
@@ -1546,6 +1550,7 @@ function loadModel() {
                 }
             });
             scene.add(player);
+            console.log('Player model added to scene at position:', player.position);
 
             mixer = new THREE.AnimationMixer(player);
             acts = {};
@@ -1561,13 +1566,26 @@ function loadModel() {
             if (acts[idleName] || fallbackIdle) {
                 curAnim = idleName;
                 mixer.clipAction(acts[idleName] || acts[fallbackIdle]).play();
+                console.log('Playing animation:', curAnim);
             }
+
+            // 初始化相机目标
+            camState.lx = 0;
+            camState.ly = 3;
+            camState.lz = 0;
 
             if (loading) loading.style.display = 'none';
         },
-        undefined,
+        (xhr) => {
+            // 加载进度
+            if (xhr.lengthComputable) {
+                const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                console.log(`Loading: ${percent}%`);
+            }
+        },
         (error) => {
-            console.error('Error loading model:', error);
+            console.error('Error loading Soldier model:', error);
+            console.log('Creating player placeholder...');
             mkPlayerPlaceholder();
             if (loading) loading.style.display = 'none';
         }
@@ -1595,7 +1613,12 @@ function mkPlayerPlaceholder() {
     scene.add(group);
     player = group;
 
-    console.log('Player placeholder created');
+    // 初始化相机目标
+    camState.lx = 0;
+    camState.ly = 3;
+    camState.lz = 0;
+
+    console.log('Player placeholder created at position:', group.position);
 }
 
 // ==================== EVENTS ====================
