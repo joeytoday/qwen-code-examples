@@ -145,15 +145,16 @@ function createRoadNetwork() {
 
   // 横向街道（东西向，3 条）
   const sideRoadPositions = [-100, 0, 100];
+  const sideRoadGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDE_ROAD_WIDTH);
+  const sideSwGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDEWALK_WIDTH);
+  
   sideRoadPositions.forEach(z => {
-    const sideRoadGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDE_ROAD_WIDTH);
     const sideRoad = new THREE.Mesh(sideRoadGeo, roadMat);
     sideRoad.rotation.x = -Math.PI / 2;
     sideRoad.position.set(0, 0.06, z);
     scene.add(sideRoad);
 
     // 横向街道人行道
-    const sideSwGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDEWALK_WIDTH);
     const sideSwNorth = new THREE.Mesh(sideSwGeo, sidewalkMat);
     sideSwNorth.rotation.x = -Math.PI / 2;
     sideSwNorth.position.set(0, 0.09, z + SIDE_ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2);
@@ -169,10 +170,10 @@ function createRoadNetwork() {
   const dashLength = 3;
   const gapLength = 3;
   const totalDashes = Math.floor(CITY_SIZE / (dashLength + gapLength));
+  const dashGeo = new THREE.PlaneGeometry(0.3, dashLength);
 
   for (let i = 0; i < totalDashes; i++) {
     const z = -half + i * (dashLength + gapLength) + dashLength / 2;
-    const dashGeo = new THREE.PlaneGeometry(0.3, dashLength);
     const dash = new THREE.Mesh(dashGeo, lineMat);
     dash.rotation.x = -Math.PI / 2;
     dash.position.set(0, 0.07, z);
