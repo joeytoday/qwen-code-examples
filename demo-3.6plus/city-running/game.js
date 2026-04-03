@@ -82,7 +82,8 @@ function init() {
 
     setupLight();
     createGround();
-    createScenery();
+    createRoadNetwork();
+    // createScenery(); // Task 4
     loadModel();
     setupEvents();
     animate();
@@ -113,6 +114,72 @@ function createGround() {
     const gr = new THREE.GridHelper(800, 40, 0x000000, 0x000000);
     gr.position.y = 0.1; gr.material.transparent = true; gr.material.opacity = 0.2;
     scene.add(gr);
+}
+
+// ==================== ROAD NETWORK ====================
+function createRoadNetwork() {
+  const half = CITY_SIZE / 2;
+  const roadMat = new THREE.MeshLambertMaterial({ color: 0x404040 });
+  const sidewalkMat = new THREE.MeshLambertMaterial({ color: 0x909090 });
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+
+  // 主干道（沿 Z 轴，南北向）
+  const mainRoadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, CITY_SIZE);
+  const mainRoad = new THREE.Mesh(mainRoadGeo, roadMat);
+  mainRoad.rotation.x = -Math.PI / 2;
+  mainRoad.position.y = 0.05;
+  scene.add(mainRoad);
+
+  // 东侧人行道
+  const swGeo = new THREE.PlaneGeometry(SIDEWALK_WIDTH, CITY_SIZE);
+  const swEast = new THREE.Mesh(swGeo, sidewalkMat);
+  swEast.rotation.x = -Math.PI / 2;
+  swEast.position.set(ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2, 0.08, 0);
+  scene.add(swEast);
+
+  // 西侧人行道
+  const swWest = new THREE.Mesh(swGeo, sidewalkMat);
+  swWest.rotation.x = -Math.PI / 2;
+  swWest.position.set(-(ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2), 0.08, 0);
+  scene.add(swWest);
+
+  // 横向街道（东西向，3 条）
+  const sideRoadPositions = [-100, 0, 100];
+  sideRoadPositions.forEach(z => {
+    const sideRoadGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDE_ROAD_WIDTH);
+    const sideRoad = new THREE.Mesh(sideRoadGeo, roadMat);
+    sideRoad.rotation.x = -Math.PI / 2;
+    sideRoad.position.set(0, 0.06, z);
+    scene.add(sideRoad);
+
+    // 横向街道人行道
+    const sideSwGeo = new THREE.PlaneGeometry(CITY_SIZE, SIDEWALK_WIDTH);
+    const sideSwNorth = new THREE.Mesh(sideSwGeo, sidewalkMat);
+    sideSwNorth.rotation.x = -Math.PI / 2;
+    sideSwNorth.position.set(0, 0.09, z + SIDE_ROAD_WIDTH / 2 + SIDEWALK_WIDTH / 2);
+    scene.add(sideSwNorth);
+
+    const sideSwSouth = new THREE.Mesh(sideSwGeo, sidewalkMat);
+    sideSwSouth.rotation.x = -Math.PI / 2;
+    sideSwSouth.position.set(0, 0.09, z - SIDE_ROAD_WIDTH / 2 - SIDEWALK_WIDTH / 2);
+    scene.add(sideSwSouth);
+  });
+
+  // 道路中心线（白色虚线）
+  const dashLength = 3;
+  const gapLength = 3;
+  const totalDashes = Math.floor(CITY_SIZE / (dashLength + gapLength));
+
+  for (let i = 0; i < totalDashes; i++) {
+    const z = -half + i * (dashLength + gapLength) + dashLength / 2;
+    const dashGeo = new THREE.PlaneGeometry(0.3, dashLength);
+    const dash = new THREE.Mesh(dashGeo, lineMat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(0, 0.07, z);
+    scene.add(dash);
+  }
+
+  return { mainRoadWidth: ROAD_WIDTH, sideRoadPositions, sideRoadWidth: SIDE_ROAD_WIDTH };
 }
 
 // ==================== SCENERY ====================
